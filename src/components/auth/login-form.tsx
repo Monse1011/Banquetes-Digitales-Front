@@ -1,6 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { login, type LoginResponse } from "@/lib/api/auth";
+import { PasswordChangeForm } from "./password-change-form";
+
 
 type LoginStatus = "idle" | "error" | "locked";
 
@@ -135,18 +138,60 @@ export function LoginForm() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<LoginStatus>("idle");
+  const [firstAccess, setFirstAccess] = useState<LoginResponse | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
-    // Temporalmente simulamos los estados del diseño.
-    // La integración real con POST /api/auth/login vendrá después.
-    if (status === "idle") {
-      setStatus("error");
-    }
+  if (isLoading){
+    return;
   }
 
+  setStatus("idle");
+  setIsLoading(true);
+
+  try {
+    setCurrentPassword(password);
+    const response = await login({
+      employeeId,
+      password,
+    });
+
+    if (response.requiresPasswordChange) {
+      setFirstAccess(response);
+      return;
+    }
+
+  } catch (error) {
+    const statusCode = (error as Error & { status?: number }).status;
+
+    if (statusCode === 423) {
+      setStatus("locked");
+      return;
+    }
+
+    setStatus("error");
+  } finally {
+    setIsLoading(false);
+  }
+
+}
+
   const hasError = status === "error" || status === "locked";
+
+  if (firstAccess) {
+    return (
+      <PasswordChangeForm
+        token={firstAccess.token}
+        currentPassword={currentPassword}
+        onSuccess={() => {
+          setCurrentPassword("");
+        }}
+      />
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-[#F5EBE8] via-[#EEE0DE] to-[#E8D4D0] px-4 py-10">
@@ -254,14 +299,14 @@ export function LoginForm() {
 
           <button
             type="submit"
-            disabled={status === "locked"}
+            disabled={status === "locked" || isLoading}
             className={`w-full rounded-sm py-3 text-sm font-medium tracking-[0.06em] transition-all ${
               status === "locked"
                 ? "cursor-not-allowed bg-[#C0A0A5] text-white"
                 : "bg-[#6B2737] text-[#FDF6F0] shadow-[0_2px_12px_rgba(107,39,55,0.25)] hover:bg-[#4A1824] active:scale-[0.99]"
             }`}
           >
-            Iniciar Sesión
+            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </button>
         </form>
 
