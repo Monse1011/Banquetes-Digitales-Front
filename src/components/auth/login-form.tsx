@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { login, type LoginResponse } from "@/lib/api/auth";
 import { PasswordChangeForm } from "./password-change-form";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/auth-context";
 
 
 type LoginStatus = "idle" | "error" | "locked";
@@ -141,6 +143,8 @@ export function LoginForm() {
   const [firstAccess, setFirstAccess] = useState<LoginResponse | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { setSession } = useAuth(); 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
@@ -163,6 +167,9 @@ export function LoginForm() {
       setFirstAccess(response);
       return;
     }
+
+    setSession(response);
+    router.push("/admin");  
 
   } catch (error) {
     const statusCode = (error as Error & { status?: number }).status;

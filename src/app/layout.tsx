@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
+import { AuthProvider } from "@/lib/auth/auth-context";
+
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
@@ -27,7 +29,9 @@ export default function RootLayout({
       lang="es"
       className={`${dmSans.variable} ${playfairDisplay.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
