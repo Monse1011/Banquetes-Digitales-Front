@@ -1,27 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminRequests, type AdminRequest } from "@/lib/api/admin";
+import { useRouter } from "next/navigation";
+import { getAdminRequests, approveAdminRequest, type AdminRequest } from "@/lib/api/admin";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function AdminPage() {
   const { token, user } = useAuth();
+  const router = useRouter();
 
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  async function handleApprove(requestId: number) {
     if (!token) {
-      setIsLoading(false);
       return;
     }
+
+    await approveAdminRequest(token, requestId);
+
+    setRequests((currentRequests) =>
+      currentRequests.map((request) =>
+        request.request_id === requestId
+          ? { ...request, status: "Aprobada" }
+          : request,
+      ),
+    );
+  }
+
+
+  useEffect(() => {
+    if (!token || user?.role !== "admin") {
+      router.replace("/login");
+      return;
+    }
+
+    const authToken = token;
 
     async function loadRequests() {
       try {
         setError("");
 
-        const response = await getAdminRequests(token);
+        const response = await getAdminRequests(authToken);
 
         setRequests(response.data);
       } catch (error) {
@@ -43,7 +64,7 @@ export default function AdminPage() {
     }
 
     loadRequests();
-  }, [token]);
+  }, [token, user?.role, router]);
 
   return (
     <main className="min-h-screen bg-[#F5EBE8] px-6 py-10">
@@ -125,7 +146,7 @@ export default function AdminPage() {
                 <tbody>
                   {requests.map((request) => (
                     <tr
-                      key={request.folio}
+                      key={request.request_id}
                       className="border-b border-[#E8D8DB] last:border-b-0"
                     >
                       <td className="px-4 py-4 font-medium text-[#6B2737]">
@@ -146,6 +167,17 @@ export default function AdminPage() {
 
                       <td className="px-4 py-4 text-[#5A3A3E]">
                         {request.status}
+                      </td>
+                      <td className="px-4 py-4">
+                        {request.status === "Pendiente" && (
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(request.request_id)}
+                            className="rounded-md bg-[#6B2737] px-4 py-2 text-sm font-medium text-white"
+                          >
+                            Aprobar
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

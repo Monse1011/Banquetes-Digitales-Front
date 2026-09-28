@@ -1,4 +1,5 @@
 export interface AdminRequest {
+  request_id: number,
   folio: string;
   client_name: string;
   client_email: string;
@@ -60,3 +61,37 @@ export async function getAdminRequests(
 
   return response.json();
 }
+
+  export async function approveAdminRequest(
+    token: string,
+    requestId: number,
+  ): Promise<AdminRequest> {
+    const response = await fetch(`/api/admin/requests/${requestId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        status: "Aprobada",
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await parseErrorResponse(
+        response,
+        "No fue posible aprobar la solicitud.",
+      );
+
+      const error = new Error(message);
+      (error as Error & { status?: number }).status = response.status;
+
+      throw error;
+    }
+
+    const result = await response.json();
+
+    return result.data;
+  }
+
+
