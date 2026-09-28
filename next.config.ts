@@ -1,13 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.10.132"],
+  allowedDevOrigins: process.env.ALLOWED_DEV_ORIGIN
+    ? [process.env.ALLOWED_DEV_ORIGIN]
+    : [],
 
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3000/api/:path*",
+        destination: `${process.env.BACKEND_URL}/api/:path*`,
       },
     ];
   },
