@@ -48,4 +48,26 @@ describe("approveAdminRequest", () => {
       status: "Aprobada",
     });
   });
+
+  it("lanza un error cuando el backend rechaza la aprobación", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        error: "No fue posible aprobar la solicitud.",
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    ),
+  );
+
+  await expect(
+    approveAdminRequest("test-token", 1),
+  ).rejects.toThrow("No fue posible aprobar la solicitud.");
+});
+
+
 });
