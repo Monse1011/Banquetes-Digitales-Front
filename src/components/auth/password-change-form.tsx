@@ -2,12 +2,15 @@
 
 import { FormEvent, useState } from "react";
 
-import { changePassword } from "@/lib/api/auth";
+import {
+  changePassword,
+  type ChangePasswordResponse,
+} from "@/lib/api/auth";
 
 type PasswordChangeFormProps = {
   token: string;
   currentPassword: string;
-  onSuccess: () => void;
+  onSuccess: (response: ChangePasswordResponse) => void;
 };
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -113,10 +116,14 @@ export function PasswordChangeForm({
     setIsLoading(true);
 
     try {
-      await changePassword(token, currentPassword, newPassword);
+      const response = await changePassword(
+        token,
+        currentPassword,
+        newPassword,
+      );
 
       setSuccess(true);
-      onSuccess();
+      onSuccess(response);
     } catch (error) {
       setError(
         error instanceof Error

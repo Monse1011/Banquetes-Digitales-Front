@@ -191,12 +191,14 @@ export function LoginForm() {
   if (firstAccess) {
     return (
       <PasswordChangeForm
-        token={firstAccess.token}
-        currentPassword={currentPassword}
-        onSuccess={() => {
-          setCurrentPassword("");
-        }}
-      />
+      token={firstAccess.token}
+      currentPassword={currentPassword}
+      onSuccess={(response) => {
+        setSession(response);
+        setCurrentPassword("");
+        router.push("/admin");
+      }}
+    />
     );
   }
 
