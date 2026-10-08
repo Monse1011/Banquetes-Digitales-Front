@@ -68,7 +68,7 @@ export default function AdminPage() {
   }, [token, user?.role, router]);
 
   return (
-    <main className="min-h-screen bg-[#F5EBE8] px-6 py-10">
+    <main className="p-10">
       <section className="mx-auto max-w-6xl">
         <header className="mb-8">
           <p className="text-xs font-medium tracking-[0.2em] text-[#6B2737] uppercase">
