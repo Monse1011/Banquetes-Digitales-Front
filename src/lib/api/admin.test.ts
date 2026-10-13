@@ -26,15 +26,15 @@ describe("approveAdminRequest", () => {
       ),
     );
 
-    const result = await approveAdminRequest("test-token", 1);
+    const result = await approveAdminRequest(1);
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/admin/requests/1",
       {
         method: "PATCH",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
         },
         body: JSON.stringify({
           status: "Aprobada",
@@ -65,7 +65,7 @@ describe("approveAdminRequest", () => {
   );
 
   await expect(
-    approveAdminRequest("test-token", 1),
+    approveAdminRequest(1),
   ).rejects.toThrow("No fue posible aprobar la solicitud.");
 });
 

@@ -7,7 +7,7 @@ import { AdminRequestsContent } from "@/components/admin/admin-requests-content"
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function AdminPage() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   const [requests, setRequests] = useState<AdminRequest[]>([]);
@@ -15,11 +15,11 @@ export default function AdminPage() {
   const [error, setError] = useState("");
 
   async function handleApprove(requestId: number) {
-    if (!token) {
+    if (!user) {
       return;
     }
 
-    await approveAdminRequest(token, requestId);
+    await approveAdminRequest(requestId);
 
     setRequests((currentRequests) =>
       currentRequests.map((request) =>
@@ -32,18 +32,17 @@ export default function AdminPage() {
 
 
   useEffect(() => {
-    if (!token || user?.role !== "admin") {
+    if (!user || user.role !== "admin") {
       router.replace("/login");
       return;
     }
 
-    const authToken = token;
 
     async function loadRequests() {
       try {
         setError("");
 
-        const response = await getAdminRequests(authToken);
+        const response = await getAdminRequests();
 
         setRequests(response.data);
       } catch (error) {
@@ -65,7 +64,7 @@ export default function AdminPage() {
     }
 
     loadRequests();
-  }, [token, user?.role, router]);
+  }, [user, router]);
 
   return (
     <main className="p-10">

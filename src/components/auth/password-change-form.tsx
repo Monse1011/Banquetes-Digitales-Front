@@ -8,7 +8,6 @@ import {
 } from "@/lib/api/auth";
 
 type PasswordChangeFormProps = {
-  token: string;
   currentPassword: string;
   onSuccess: (response: ChangePasswordResponse) => void;
 };
@@ -93,7 +92,6 @@ function PasswordInput({
 }
 
 export function PasswordChangeForm({
-  token,
   currentPassword,
   onSuccess,
 }: PasswordChangeFormProps) {
@@ -106,6 +104,8 @@ export function PasswordChangeForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (isLoading || success) return;
+
     setError("");
 
     if (newPassword !== confirmation) {
@@ -117,13 +117,12 @@ export function PasswordChangeForm({
 
     try {
       const response = await changePassword(
-        token,
         currentPassword,
         newPassword,
       );
 
-      setSuccess(true);
       onSuccess(response);
+      setSuccess(true);
     } catch (error) {
       setError(
         error instanceof Error

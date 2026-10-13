@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { login, type LoginResponse } from "@/lib/api/auth";
+import { login, getFirstAccess, type LoginResponse } from "@/lib/api/auth";
 import { PasswordChangeForm } from "./password-change-form";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -139,66 +139,65 @@ function PasswordInput({
 export function LoginForm() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [status, setStatus] = useState<LoginStatus>("idle");
   const [firstAccess, setFirstAccess] = useState<LoginResponse | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { setSession } = useAuth(); 
+  const { setSession, clearSession } = useAuth();
+
+  function completeLogin(response: LoginResponse) {
+    const destination = response.user.role === "admin"
+      ? "/admin"
+      : response.user.role === "logistica" ? "/logistics" : null;
+    if (!destination) {
+      throw new Error("El usuario no tiene un rol de acceso reconocido.");
+    }
+    setSession(response);
+    setCurrentPassword("");
+    setPassword("");
+    router.replace(destination);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault();
+    event.preventDefault();
+    if (isLoading) return;
 
-  if (isLoading){
-    return;
-  }
+    setStatus("idle");
+    setErrorMessage("");
+    setIsLoading(true);
+    clearSession();
 
-  setStatus("idle");
-  setIsLoading(true);
+    try {
+      const response = await login({ employeeId, password });
+      const { firstAccess: requiresChange } = await getFirstAccess();
 
-  try {
-    setCurrentPassword(password);
-    const response = await login({
-      employeeId,
-      password,
-    });
-
-    if (response.requiresPasswordChange) {
-      setFirstAccess(response);
-      return;
+      if (requiresChange) {
+        setCurrentPassword(password);
+        setPassword("");
+        setFirstAccess(response);
+        return;
+      }
+      completeLogin(response);
+    } catch (error) {
+      setCurrentPassword("");
+      const statusCode = (error as Error & { status?: number }).status;
+      setStatus(statusCode === 423 ? "locked" : "error");
+      setErrorMessage(error instanceof Error ? error.message : "No fue posible iniciar sesión.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setSession(response);
-    router.push("/admin");  
-
-  } catch (error) {
-    const statusCode = (error as Error & { status?: number }).status;
-
-    if (statusCode === 423) {
-      setStatus("locked");
-      return;
-    }
-
-    setStatus("error");
-  } finally {
-    setIsLoading(false);
   }
-
-}
 
   const hasError = status === "error" || status === "locked";
 
   if (firstAccess) {
     return (
       <PasswordChangeForm
-      token={firstAccess.token}
-      currentPassword={currentPassword}
-      onSuccess={(response) => {
-        setSession(response);
-        setCurrentPassword("");
-        router.push("/admin");
-      }}
-    />
+        currentPassword={currentPassword}
+        onSuccess={completeLogin}
+      />
     );
   }
 
@@ -291,7 +290,7 @@ export function LoginForm() {
                 </svg>
 
                 <span className="text-xs font-medium text-[#C0392B]">
-                  Credenciales incorrectas. Verifique su ID y contraseña.
+                  {errorMessage}
                 </span>
               </div>
             )}

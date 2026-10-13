@@ -38,13 +38,9 @@ async function parseErrorResponse(
   return fallbackMessage;
 }
 
-export async function getAdminRequests(
-  token: string,
-): Promise<AdminRequestsResponse> {
+export async function getAdminRequests(): Promise<AdminRequestsResponse> {
   const response = await fetch("/api/admin/requests", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: "same-origin",
   });
 
   if (!response.ok) {
@@ -63,14 +59,13 @@ export async function getAdminRequests(
 }
 
   export async function approveAdminRequest(
-    token: string,
     requestId: number,
   ): Promise<AdminRequest> {
     const response = await fetch(`/api/admin/requests/${requestId}`, {
       method: "PATCH",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         status: "Aprobada",
