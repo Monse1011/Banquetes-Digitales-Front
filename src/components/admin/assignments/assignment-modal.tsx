@@ -15,7 +15,8 @@ type AssignmentModalProps = {
     request: AssignmentRequestDetail,
     user: AvailableLogisticsUser,
   ) => void;
-  onViewEvents: (user: AvailableLogisticsUser) => void;
+  saving?: boolean;
+  error?: string;
 };
 
 function formatLongDate(date: string) {
@@ -43,7 +44,8 @@ export function AssignmentModal({
   users,
   onClose,
   onConfirm,
-  onViewEvents,
+  saving = false,
+  error = "",
 }: AssignmentModalProps) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
@@ -51,7 +53,7 @@ export function AssignmentModal({
     users.find((user) => user.id === selectedUserId) ?? null;
 
   function handleConfirm() {
-    if (!selectedUser) {
+    if (!selectedUser || saving) {
       return;
     }
 
@@ -69,6 +71,7 @@ export function AssignmentModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Cerrar"
             className="flex h-[18px] w-[18px] items-center justify-center text-lg leading-none text-[#7A5055]"
           >
@@ -144,6 +147,9 @@ export function AssignmentModal({
               <span className="text-xs text-[#C0392B]">*</span>
             </div>
 
+            <p className="text-xs text-[#7A5055]">La disponibilidad del horario se validará al confirmar la asignación.</p>
+            {users.length === 0 && <p role="status" className="text-sm text-[#7A5055]">No existen empleados de Personal de Logística activos registrados.</p>}
+            {error && <p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
             <div className="space-y-2">
               {users.map((user) => {
                 const isUnavailable =
@@ -163,7 +169,7 @@ export function AssignmentModal({
                         name="logistics-user"
                         value={user.id}
                         checked={selectedUserId === user.id}
-                        disabled={isUnavailable}
+                        disabled={isUnavailable || saving}
                         onChange={() => setSelectedUserId(user.id)}
                         className="h-[18px] w-[18px] accent-[#6B2737]"
                       />
@@ -176,7 +182,7 @@ export function AssignmentModal({
                               : "text-[#2C1A1D]"
                           }`}
                         >
-                          {user.full_name}
+                          {user.full_name} · {user.employee_id}
                         </p>
 
                         <p
@@ -205,7 +211,7 @@ export function AssignmentModal({
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                             isUnavailable
                               ? "bg-[#FFF4F2] text-[#C0392B]"
-                              : "bg-[#E8F5E9] text-[#2E7D32]"
+                              : user.availability === "Por verificar" ? "bg-amber-50 text-amber-800" : "bg-[#E8F5E9] text-[#2E7D32]"
                           }`}
                         >
                           {user.availability}
@@ -222,13 +228,7 @@ export function AssignmentModal({
                           {user.conflict.end_time}
                         </p>
 
-                        <button
-                          type="button"
-                          onClick={() => onViewEvents(user)}
-                          className="text-[#6B2737] underline"
-                        >
-                          Ver sus eventos
-                        </button>
+
                       </div>
                     )}
                   </div>
@@ -242,6 +242,7 @@ export function AssignmentModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="rounded border border-[#E8D8DB] px-5 py-2.5 text-sm font-medium text-[#6B2737]"
           >
             Cancelar
@@ -250,10 +251,10 @@ export function AssignmentModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!selectedUser}
+            disabled={!selectedUser || saving}
             className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0] shadow-[0_2px_12px_rgba(107,39,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Confirmar Asignación
+            {saving ? "Guardando…" : "Confirmar Asignación"}
           </button>
         </footer>
       </section>

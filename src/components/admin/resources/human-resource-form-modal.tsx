@@ -9,6 +9,8 @@ import type {
 
 type HumanResourceFormModalProps = {
   mode: "create" | "edit";
+  saving?: boolean;
+  error?: string;
   operativeRoles: OperativeRoleOption[];
   initialValues?: HumanResourceFormValues;
   onClose: () => void;
@@ -22,6 +24,8 @@ const EMPTY_VALUES: HumanResourceFormValues = {
 
 export function HumanResourceFormModal({
   mode,
+  saving = false,
+  error,
   operativeRoles,
   initialValues,
   onClose,
@@ -48,7 +52,7 @@ export function HumanResourceFormModal({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!isValid) {
+    if (!isValid || saving) {
       return;
     }
 
@@ -69,6 +73,7 @@ export function HumanResourceFormModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Cerrar"
             className="text-lg leading-none text-[#7A5055]"
           >
@@ -77,6 +82,8 @@ export function HumanResourceFormModal({
         </header>
 
         <form onSubmit={handleSubmit}>
+          {error && <p role="alert" className="px-6 pt-4 text-red-700">{error}</p>}
+          <fieldset disabled={saving}>
           <div className="space-y-5 p-6">
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase text-[#5A3A3E]">
@@ -147,6 +154,9 @@ export function HumanResourceFormModal({
                 className="w-full rounded border border-[#D4BFC2] bg-white px-4 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
               >
                 <option value="">Seleccionar rol...</option>
+                {initialValues?.operative_role_id && !operativeRoles.some(role => role.id === initialValues.operative_role_id) && (
+                  <option value={initialValues.operative_role_id}>Rol actual {initialValues.operative_role_id} (inactivo)</option>
+                )}
 
                 {operativeRoles.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -161,6 +171,7 @@ export function HumanResourceFormModal({
             <button
               type="button"
               onClick={onClose}
+            disabled={saving}
               className="rounded border border-[#E8D8DB] px-5 py-2.5 text-sm font-medium text-[#6B2737]"
             >
               Cancelar
@@ -168,12 +179,13 @@ export function HumanResourceFormModal({
 
             <button
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || saving}
               className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0] shadow-[0_2px_12px_rgba(107,39,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isEditMode ? "Guardar cambios" : "Guardar"}
+              {saving ? "Guardando…" : isEditMode ? "Guardar cambios" : "Guardar"}
             </button>
           </footer>
+        </fieldset>
         </form>
       </section>
     </div>

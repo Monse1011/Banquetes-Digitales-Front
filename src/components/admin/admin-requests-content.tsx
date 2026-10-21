@@ -6,6 +6,7 @@ type AdminRequestsContentProps = {
   error: string;
   requests: AdminRequest[];
   onApprove: (requestId: number) => void;
+  onView: (requestId: number) => void;
 };
 
 export function AdminRequestsContent({
@@ -13,6 +14,7 @@ export function AdminRequestsContent({
   error,
   requests,
   onApprove,
+  onView,
 }: AdminRequestsContentProps) {
   if (isLoading) {
     return (
@@ -42,6 +44,7 @@ export function AdminRequestsContent({
     <AdminRequestsTable
       requests={requests}
       onApprove={onApprove}
+      onView={onView}
     />
   );
 }

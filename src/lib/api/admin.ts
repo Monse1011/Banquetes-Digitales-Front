@@ -6,6 +6,11 @@ export interface AdminRequest {
   requested_date: string;
   selected_services: string[];
   status: string;
+  logistic_user?: {
+    id: number;
+    full_name: string;
+    email: string;
+  } | null;
 }
 
 export interface AdminRequestsResponse {

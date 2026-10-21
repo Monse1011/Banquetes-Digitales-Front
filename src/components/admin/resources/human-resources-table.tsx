@@ -85,7 +85,9 @@ export function HumanResourcesTable({
               </td>
 
               <td className="py-4 pr-4">
-                {resource.assigned_to_event ? (
+                {resource.assigned_to_event === null ? (
+                  <span className="text-xs text-[#9A7075]">Sin información</span>
+                ) : resource.assigned_to_event ? (
                   <span className="rounded-full bg-[#E3F2FD] px-2.5 py-1 text-xs font-medium text-[#1565C0]">
                     Sí
                   </span>

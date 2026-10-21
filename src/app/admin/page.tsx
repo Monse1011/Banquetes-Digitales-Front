@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminRequests, approveAdminRequest, type AdminRequest } from "@/lib/api/admin";
 import { AdminRequestsContent } from "@/components/admin/admin-requests-content";
+import { RequestDetailModal } from "@/components/admin/request-detail-modal";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function AdminPage() {
@@ -13,6 +14,8 @@ export default function AdminPage() {
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [refresh, setRefresh] = useState(0);
 
   async function handleApprove(requestId: number) {
     if (!user) {
@@ -64,7 +67,7 @@ export default function AdminPage() {
     }
 
     loadRequests();
-  }, [user, router]);
+  }, [user, router, refresh]);
 
   return (
     <main className="p-10">
@@ -107,9 +110,11 @@ export default function AdminPage() {
             error={error}
             requests={requests}
             onApprove={handleApprove}
+            onView={setSelectedId}
           />
         </section>
       </section>
+      {selectedId !== null && <RequestDetailModal key={selectedId} requestId={selectedId} onClose={() => setSelectedId(null)} onSaved={() => setRefresh((v) => v + 1)} />}
     </main>
   );
 }

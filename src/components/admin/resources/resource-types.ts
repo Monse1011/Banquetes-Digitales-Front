@@ -32,7 +32,7 @@ export interface HumanResource {
   name: string;
   operative_role: OperativeRoleOption;
   is_active: boolean;
-  assigned_to_event: boolean;
+  assigned_to_event: boolean | null;
 }
 
 export interface HumanResourceFormValues {

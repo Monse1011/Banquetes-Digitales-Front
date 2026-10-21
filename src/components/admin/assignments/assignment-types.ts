@@ -10,6 +10,8 @@ export interface AssignmentRequest {
 }
 
 export interface AssignmentRequestDetail extends AssignmentRequest {
+  logistic_user?: { id: number; full_name: string; email: string } | null;
+  event_end_date?: string;
   client_email: string;
   client_phone: string;
   selected_services: string[];
@@ -19,11 +21,11 @@ export interface AssignmentRequestDetail extends AssignmentRequest {
 
 export interface AvailableLogisticsUser {
   id: number;
-  employee_id: number;
+  employee_id: number | string;
   full_name: string;
   role: string;
   status: string;
-  availability: "Disponible" | "No disponible";
+  availability: "Disponible" | "No disponible" | "Por verificar";
   conflict?: {
     folio: string;
     event_date: string;

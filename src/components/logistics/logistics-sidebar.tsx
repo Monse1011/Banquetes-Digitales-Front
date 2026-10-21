@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/auth/auth-context";
@@ -9,11 +10,16 @@ export function LogisticsSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { user, clearSession } = useAuth();
+  const { user, logout } = useAuth();
+  const [closing, setClosing] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
-  function handleLogout() {
-    clearSession();
-    router.replace("/login");
+  async function handleLogout() {
+    if (closing) return;
+    setClosing(true); setLogoutError("");
+    try { await logout(); router.replace("/login"); }
+    catch (error) { setLogoutError(error instanceof Error ? error.message : "No se pudo cerrar la sesión."); }
+    finally { setClosing(false); }
   }
 
   const links = [
@@ -73,7 +79,9 @@ export function LogisticsSidebar() {
           </p>
         </div>
 
+        {logoutError && <p role="alert" className="mb-2 text-xs text-red-700">{logoutError}</p>}
         <button
+          disabled={closing}
           type="button"
           onClick={handleLogout}
           className="w-full rounded border border-[#E8D8DB] px-3 py-2 text-xs font-medium text-[#7A5055]"

@@ -1,3 +1,4 @@
+import { SessionGuard } from "@/components/auth/session-guard";
 import type { ReactNode } from "react";
 
 import { LogisticsSidebar } from "@/components/logistics/logistics-sidebar";
@@ -9,6 +10,7 @@ export default function LogisticsLayout({
   children: ReactNode;
 }) {
   return (
+    <SessionGuard role="logistica">
     <LogisticsMockProvider>
       <div className="flex min-h-screen bg-[#F5EBE8]">
         <LogisticsSidebar />
@@ -18,5 +20,6 @@ export default function LogisticsLayout({
         </div>
       </div>
     </LogisticsMockProvider>
+    </SessionGuard>
   );
 }
