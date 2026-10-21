@@ -15,7 +15,9 @@ type AssignmentModalProps = {
     request: AssignmentRequestDetail,
     user: AvailableLogisticsUser,
   ) => void;
-  onViewEvents: (user: AvailableLogisticsUser) => void;
+  saving?: boolean;
+  error?: string;
+  onViewEvents?: (user: AvailableLogisticsUser) => void;
 };
 
 function formatLongDate(date: string) {
@@ -44,17 +46,22 @@ export function AssignmentModal({
   onClose,
   onConfirm,
   onViewEvents,
+  saving = false,
+  error,
 }: AssignmentModalProps) {
+  const [confirming, setConfirming] = useState(false);
+  const isReassigning = request.status === "Asignada";
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const selectedUser =
     users.find((user) => user.id === selectedUserId) ?? null;
 
   function handleConfirm() {
-    if (!selectedUser) {
+    if (!selectedUser || saving) {
       return;
     }
 
+    if (isReassigning && !confirming) { setConfirming(true); return; }
     onConfirm(request, selectedUser);
   }
 
@@ -63,12 +70,13 @@ export function AssignmentModal({
       <section className="flex max-h-[90vh] w-full max-w-[512px] flex-col overflow-hidden rounded-lg border border-[#E8D8DB] bg-[#FDFAF8] shadow-[0_10px_24px_rgba(0,0,0,0.17)]">
         <header className="flex items-center justify-between border-b border-[#E8D8DB] p-6">
           <h2 className="font-display text-2xl font-semibold text-[#2C1A1D]">
-            Asignar Responsable de Logística
+            {isReassigning ? "Reasignar Responsable de Logística" : "Asignar Responsable de Logística"}
           </h2>
 
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Cerrar"
             className="flex h-[18px] w-[18px] items-center justify-center text-lg leading-none text-[#7A5055]"
           >
@@ -87,6 +95,7 @@ export function AssignmentModal({
             </span>
           </div>
 
+          {isReassigning && <p className="text-sm">Responsable actual: <strong>{request.logistic_user?.full_name}</strong></p>}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase text-[#5A3A3E]">
               Detalle de la solicitud
@@ -144,6 +153,8 @@ export function AssignmentModal({
               <span className="text-xs text-[#C0392B]">*</span>
             </div>
 
+            <p className="text-xs text-[#7A5055]">La disponibilidad del horario se verifica al confirmar.</p>
+            {users.length === 0 && <p role="status" className="text-sm text-[#7A5055]">No hay personal de logística activo para asignar.</p>}
             <div className="space-y-2">
               {users.map((user) => {
                 const isUnavailable =
@@ -163,8 +174,8 @@ export function AssignmentModal({
                         name="logistics-user"
                         value={user.id}
                         checked={selectedUserId === user.id}
-                        disabled={isUnavailable}
-                        onChange={() => setSelectedUserId(user.id)}
+                        disabled={isUnavailable || saving}
+                        onChange={() => { setSelectedUserId(user.id); setConfirming(false); }}
                         className="h-[18px] w-[18px] accent-[#6B2737]"
                       />
 
@@ -213,7 +224,7 @@ export function AssignmentModal({
                       </div>
                     </label>
 
-                    {isUnavailable && user.conflict && (
+                    {isUnavailable && user.conflict && onViewEvents && (
                       <div className="space-y-1 py-2 pl-10 text-xs">
                         <p className="text-[#7A5055]">
                           Conflicto: {user.conflict.folio},{" "}
@@ -224,7 +235,7 @@ export function AssignmentModal({
 
                         <button
                           type="button"
-                          onClick={() => onViewEvents(user)}
+                          onClick={() => onViewEvents?.(user)}
                           className="text-[#6B2737] underline"
                         >
                           Ver sus eventos
@@ -238,10 +249,17 @@ export function AssignmentModal({
           </section>
         </div>
 
+        {confirming && <div role="status" className="px-6 py-3 text-sm text-[#6B2737]">
+          <p>¿Desea reasignar la solicitud al nuevo responsable seleccionado?</p>
+          <p>Nuevo responsable: <strong>{selectedUser?.full_name}</strong></p>
+          <button type="button" disabled={saving} className="underline" onClick={() => setConfirming(false)}>Volver a la selección</button>
+        </div>}
+        {error && <p role="alert" className="px-6 py-3 text-sm text-red-700">{error}</p>}
         <footer className="flex justify-end gap-3 border-t border-[#E8D8DB] p-6">
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="rounded border border-[#E8D8DB] px-5 py-2.5 text-sm font-medium text-[#6B2737]"
           >
             Cancelar
@@ -250,10 +268,10 @@ export function AssignmentModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!selectedUser}
+            disabled={!selectedUser || saving}
             className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0] shadow-[0_2px_12px_rgba(107,39,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Confirmar Asignación
+            {saving ? "Guardando…" : isReassigning ? (confirming ? "Confirmar reasignación" : "Revisar reasignación") : "Confirmar Asignación"}
           </button>
         </footer>
       </section>

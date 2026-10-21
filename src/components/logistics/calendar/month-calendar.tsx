@@ -1,5 +1,6 @@
 "use client";
 
+import { eventOccupiesDay } from "@/lib/api/calendar";
 import type { CalendarEvent } from "./calendar-types";
 
 type Props = {
@@ -88,7 +89,7 @@ export function MonthCalendar({
 
   function hasEvents(dateKey: string) {
     return visibleEvents.some((event) =>
-      event.start_datetime.startsWith(dateKey),
+      eventOccupiesDay(event, dateKey),
     );
   }
 

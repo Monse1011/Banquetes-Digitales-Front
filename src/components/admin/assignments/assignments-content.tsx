@@ -14,7 +14,7 @@ export function AssignmentsContent({
     return (
       <div className="rounded border border-[#E8D8DB] bg-[#FDFAF8] px-6 py-10 text-center">
         <p className="text-sm text-[#7A5055]">
-          No existen solicitudes aprobadas pendientes de asignar.
+          No hay solicitudes que coincidan con los filtros seleccionados.
         </p>
       </div>
     );

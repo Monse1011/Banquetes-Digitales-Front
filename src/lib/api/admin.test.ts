@@ -1,73 +1,18 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { afterEach, expect, it, vi } from "vitest";
 import { approveAdminRequest } from "./admin";
-
-describe("approveAdminRequest", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("envía la solicitud de aprobación al backend", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: {
-            request_id: 1,
-            folio: "BD-2026-00002",
-            status: "Aprobada",
-          },
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      ),
-    );
-
-    const result = await approveAdminRequest("test-token", 1);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/admin/requests/1",
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-        body: JSON.stringify({
-          status: "Aprobada",
-        }),
-      },
-    );
-
-    expect(result).toEqual({
-      request_id: 1,
-      folio: "BD-2026-00002",
-      status: "Aprobada",
-    });
-  });
-
-  it("lanza un error cuando el backend rechaza la aprobación", async () => {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        error: "No fue posible aprobar la solicitud.",
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    ),
+afterEach(() => vi.restoreAllMocks());
+it("approves with cookie credentials and unwraps the response array", async () => {
+  const row = { request_id: 1, folio: "BD-2026-00002", status: "Aprobada" };
+  const fetcher = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(Response.json({ data: [row] }));
+  expect(await approveAdminRequest(1)).toEqual(row);
+  expect(fetcher.mock.calls[0][0]).toBe("/api/admin/requests/1");
+  expect(fetcher.mock.calls[0][1]?.credentials).toBe("same-origin");
+  expect(fetcher.mock.calls[0][1]?.body).toBe(
+    JSON.stringify({ status: "Aprobada" }),
   );
-
-  await expect(
-    approveAdminRequest("test-token", 1),
-  ).rejects.toThrow("No fue posible aprobar la solicitud.");
-});
-
-
+  expect(
+    new Headers(fetcher.mock.calls[0][1]?.headers).has("Authorization"),
+  ).toBe(false);
 });

@@ -2,8 +2,8 @@ import type { OperativeRole } from "./operative-role-types";
 
 type Props = {
   roles: OperativeRole[];
-  onEdit: (role: OperativeRole) => void;
-  onChangeStatus: (role: OperativeRole) => void;
+  onEdit?: (role: OperativeRole) => void;
+  onChangeStatus?: (role: OperativeRole) => void;
 };
 
 export function OperativeRolesTable({
@@ -28,9 +28,9 @@ export function OperativeRolesTable({
               RH Activos asignados
             </th>
 
-            <th className="w-[180px] pb-3 text-right text-xs font-semibold uppercase text-[#7A5055]">
+            {(onEdit || onChangeStatus) && <th className="w-[180px] pb-3 text-right text-xs font-semibold uppercase text-[#7A5055]">
               Acciones
-            </th>
+            </th>}
           </tr>
         </thead>
 
@@ -60,25 +60,25 @@ export function OperativeRolesTable({
                 {role.active_human_resources_count}
               </td>
 
-              <td className="py-4">
+              {(onEdit || onChangeStatus) && <td className="py-4">
                 <div className="flex justify-end gap-2">
-                  <button
+                  {onEdit && <button
                     type="button"
                     onClick={() => onEdit(role)}
                     className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737]"
                   >
                     Editar
-                  </button>
+                  </button>}
 
-                  <button
+                  {onChangeStatus && <button
                     type="button"
                     onClick={() => onChangeStatus(role)}
                     className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737]"
                   >
                     {role.is_active ? "Desactivar" : "Reactivar"}
-                  </button>
+                  </button>}
                 </div>
-              </td>
+              </td>}
             </tr>
           ))}
         </tbody>
@@ -86,7 +86,7 @@ export function OperativeRolesTable({
 
       {roles.length === 0 && (
         <p className="py-8 text-center text-sm text-[#7A5055]">
-          No hay roles operativos registrados.
+          No hay roles operativos activos.
         </p>
       )}
     </div>

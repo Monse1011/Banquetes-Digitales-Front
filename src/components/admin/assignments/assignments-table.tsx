@@ -58,6 +58,7 @@ export function AssignmentsTable({
             >
               <td className="py-4 pr-4 text-sm font-medium text-[#6B2737]">
                 {request.folio}
+                {request.logistic_user && <p className="mt-1 text-xs font-normal">Responsable: {request.logistic_user.full_name}</p>}
               </td>
 
               <td className="py-4 pr-4 text-sm text-[#2C1A1D]">
@@ -90,7 +91,7 @@ export function AssignmentsTable({
                   onClick={() => onAssign(request)}
                   className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737] transition-colors hover:bg-[#F5EBE8]"
                 >
-                  Asignar
+                  {request.status === "Asignada" ? "Reasignar" : "Asignar"}
                 </button>
               </td>
             </tr>

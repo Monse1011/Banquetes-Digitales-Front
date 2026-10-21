@@ -3,6 +3,9 @@ import type { AdminUser } from "./user-types";
 type Props = {
   user: AdminUser;
   onClose: () => void;
+  onResend?: () => void;
+  busy?: boolean;
+  message?: string;
 };
 
 const ROLE_LABELS = {
@@ -24,6 +27,9 @@ function formatDate(value: string | null) {
 export function UserDetailModal({
   user,
   onClose,
+  onResend,
+  busy = false,
+  message,
 }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -94,7 +100,9 @@ export function UserDetailModal({
           />
         </div>
 
-        <footer className="flex justify-end border-t border-[#E8D8DB] p-6">
+        {message && <p role="status" className="px-6 py-3 text-sm">{message}</p>}
+        <footer className="flex gap-3 justify-end border-t border-[#E8D8DB] p-6">
+          {onResend && selectedCanResend(user) && <button type="button" disabled={busy} onClick={onResend} className="rounded border border-[#E8D8DB] px-5 py-2.5 text-sm">{busy ? "Enviando…" : "Reenviar credenciales"}</button>}
           <button
             type="button"
             onClick={onClose}
@@ -127,3 +135,4 @@ function Field({
     </div>
   );
 }
+function selectedCanResend(user: AdminUser) { return user.status === "ACTIVE" && user.last_access === null; }

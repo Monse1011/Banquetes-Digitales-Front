@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+
+import { agreementError } from "@/lib/api/agreements";
 
 import type { CalendarEvent } from "./calendar-types";
 
@@ -14,7 +16,7 @@ type Props = {
       start_datetime: string;
       end_datetime: string;
     },
-  ) => void;
+  ) => Promise<void>;
 };
 
 function toDateInput(dateTime: string) {
@@ -25,29 +27,24 @@ function toTimeInput(dateTime: string) {
   return dateTime.slice(11, 16);
 }
 
-export function EditCalendarEventModal({
-  event,
-  onClose,
-  onSave,
-}: Props) {
-  const [location, setLocation] =
-    useState(event.location);
+export function EditCalendarEventModal({ event, onClose, onSave }: Props) {
+  const [location, setLocation] = useState(event.location);
 
-  const [startDate, setStartDate] =
-    useState(toDateInput(event.start_datetime));
+  const [startDate, setStartDate] = useState(toDateInput(event.start_datetime));
 
-  const [startTime, setStartTime] =
-    useState(toTimeInput(event.start_datetime));
+  const [startTime, setStartTime] = useState(toTimeInput(event.start_datetime));
 
-  const [endDate, setEndDate] =
-    useState(toDateInput(event.end_datetime));
+  const [endDate, setEndDate] = useState(toDateInput(event.end_datetime));
 
-  const [endTime, setEndTime] =
-    useState(toTimeInput(event.end_datetime));
+  const [endTime, setEndTime] = useState(toTimeInput(event.end_datetime));
 
   const [error, setError] = useState("");
 
-  function handleSave() {
+  const saving = useRef(false);
+  const [pending, setPending] = useState(false);
+
+  async function handleSave() {
+    if (saving.current) return;
     setError("");
 
     if (!location.trim()) {
@@ -56,71 +53,72 @@ export function EditCalendarEventModal({
     }
 
     if (!startDate) {
-      setError(
-        "El campo fecha de inicio es obligatorio.",
-      );
+      setError("El campo fecha de inicio es obligatorio.");
       return;
     }
 
     if (!startTime) {
-      setError(
-        "El campo hora de inicio es obligatorio.",
-      );
+      setError("El campo hora de inicio es obligatorio.");
       return;
     }
 
     if (!endDate) {
-      setError(
-        "El campo fecha de fin es obligatorio.",
-      );
+      setError("El campo fecha de fin es obligatorio.");
       return;
     }
 
     if (!endTime) {
-      setError(
-        "El campo hora de fin es obligatorio.",
-      );
+      setError("El campo hora de fin es obligatorio.");
       return;
     }
 
-    const start = new Date(
-      `${startDate}T${startTime}:00`,
-    );
+    const start = new Date(`${startDate}T${startTime}:00-06:00`);
 
-    const end = new Date(
-      `${endDate}T${endTime}:00`,
-    );
+    const end = new Date(`${endDate}T${endTime}:00-06:00`);
 
     if (end <= start) {
-      setError(
-        "La hora de fin debe ser posterior a la de inicio.",
-      );
+      setError("La hora de fin debe ser posterior a la de inicio.");
       return;
     }
 
-    onSave(event.event_id, {
-      location: location.trim(),
-      start_datetime: `${startDate}T${startTime}:00`,
-      end_datetime: `${endDate}T${endTime}:00`,
-    });
+    saving.current = true;
+    setPending(true);
+    try {
+      await onSave(event.event_id, {
+        location: location.trim(),
+        start_datetime: `${startDate}T${startTime}:00-06:00`,
+        end_datetime: `${endDate}T${endTime}:00-06:00`,
+      });
+    } catch (e) {
+      setError(
+        `${agreementError(e)} Puedes ajustar el horario y volver a guardar, o cancelar la edición para conservar el evento.`,
+      );
+    } finally {
+      saving.current = false;
+      setPending(false);
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <section className="w-full max-w-[620px] rounded-lg border border-[#E8D8DB] bg-[#FDFAF8]">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editar evento"
+        className="w-full max-w-[620px] rounded-lg border border-[#E8D8DB] bg-[#FDFAF8]"
+      >
         <header className="flex items-start justify-between border-b border-[#E8D8DB] p-6">
           <div>
             <h2 className="font-display text-2xl font-semibold text-[#2C1A1D]">
               Editar evento
             </h2>
 
-            <p className="mt-1 text-sm text-[#7A5055]">
-              {event.folio} · {event.client_name}
-            </p>
+            <p className="mt-1 text-sm text-[#7A5055]">{event.title}</p>
           </div>
 
           <button
             type="button"
+            disabled={pending}
             onClick={onClose}
             aria-label="Cerrar"
             className="text-lg text-[#7A5055]"
@@ -129,17 +127,13 @@ export function EditCalendarEventModal({
           </button>
         </header>
 
-        <div className="space-y-5 p-6">
+        <fieldset disabled={pending} className="space-y-5 p-6">
+          <p>Horario de Mérida.</p>
           <div className="rounded border border-[#E8D8DB] bg-[#F5EBE8] px-4 py-3">
-            <p className="text-sm text-[#5A3A3E]">
-              Responsable de logística
-            </p>
+            <p className="text-sm text-[#5A3A3E]">Responsable de logística</p>
 
             <p className="mt-1 text-sm font-medium text-[#2C1A1D]">
-              {
-                event.logistics_responsible
-                  .full_name
-              }
+              {event.logistics_responsible?.full_name ?? "Sin responsable"}
             </p>
 
             <p className="mt-1 text-xs text-[#9A7075]">
@@ -155,9 +149,7 @@ export function EditCalendarEventModal({
             <input
               type="text"
               value={location}
-              onChange={(event) =>
-                setLocation(event.target.value)
-              }
+              onChange={(event) => setLocation(event.target.value)}
               className="mt-2 w-full rounded border border-[#D4BFC2] bg-white px-3 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
             />
           </div>
@@ -171,9 +163,7 @@ export function EditCalendarEventModal({
               <input
                 type="date"
                 value={startDate}
-                onChange={(event) =>
-                  setStartDate(event.target.value)
-                }
+                onChange={(event) => setStartDate(event.target.value)}
                 className="mt-2 w-full rounded border border-[#D4BFC2] bg-white px-3 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
               />
             </div>
@@ -186,9 +176,7 @@ export function EditCalendarEventModal({
               <input
                 type="time"
                 value={startTime}
-                onChange={(event) =>
-                  setStartTime(event.target.value)
-                }
+                onChange={(event) => setStartTime(event.target.value)}
                 className="mt-2 w-full rounded border border-[#D4BFC2] bg-white px-3 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
               />
             </div>
@@ -201,9 +189,7 @@ export function EditCalendarEventModal({
               <input
                 type="date"
                 value={endDate}
-                onChange={(event) =>
-                  setEndDate(event.target.value)
-                }
+                onChange={(event) => setEndDate(event.target.value)}
                 className="mt-2 w-full rounded border border-[#D4BFC2] bg-white px-3 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
               />
             </div>
@@ -216,32 +202,33 @@ export function EditCalendarEventModal({
               <input
                 type="time"
                 value={endTime}
-                onChange={(event) =>
-                  setEndTime(event.target.value)
-                }
+                onChange={(event) => setEndTime(event.target.value)}
                 className="mt-2 w-full rounded border border-[#D4BFC2] bg-white px-3 py-2.5 text-sm text-[#2C1A1D] outline-none focus:border-[#6B2737]"
               />
             </div>
           </div>
 
           {error && (
-            <div className="rounded border border-[#F3C2C2] bg-[#FDECEC] px-4 py-3 text-sm text-[#C0392B]">
+            <div
+              role="alert"
+              className="rounded border border-[#F3C2C2] bg-[#FDECEC] px-4 py-3 text-sm text-[#C0392B]"
+            >
               {error}
             </div>
           )}
 
           <div className="rounded border border-[#F2D7B6] bg-[#FFF3E0] px-4 py-3">
             <p className="text-xs text-[#E65100]">
-              Si cambia la fecha o la hora, la
-              disponibilidad del responsable y los
-              recursos debe reevaluarse antes de guardar.
+              Si cambia la fecha o la hora, la disponibilidad del responsable y
+              los recursos debe reevaluarse antes de guardar.
             </p>
           </div>
-        </div>
+        </fieldset>
 
         <footer className="flex justify-end gap-3 border-t border-[#E8D8DB] p-6">
           <button
             type="button"
+            disabled={pending}
             onClick={onClose}
             className="rounded border border-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#6B2737]"
           >
@@ -250,10 +237,11 @@ export function EditCalendarEventModal({
 
           <button
             type="button"
+            disabled={pending}
             onClick={handleSave}
             className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0]"
           >
-            Guardar cambios
+            {pending ? "Guardando…" : "Guardar cambios"}
           </button>
         </footer>
       </section>

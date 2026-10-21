@@ -11,6 +11,7 @@ type Props = {
   mode: "create" | "edit";
   initialValues?: UserFormValues;
   error?: string | null;
+  saving?: boolean;
   onClose: () => void;
   onSubmit: (values: UserFormValues) => void;
 };
@@ -25,6 +26,7 @@ export function UserFormModal({
   mode,
   initialValues,
   error,
+  saving = false,
   onClose,
   onSubmit,
 }: Props) {
@@ -44,7 +46,7 @@ export function UserFormModal({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!isValid) {
+    if (!isValid || saving) {
       return;
     }
 
@@ -68,6 +70,7 @@ export function UserFormModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Cerrar"
             className="text-lg text-[#7A5055]"
           >
@@ -76,6 +79,8 @@ export function UserFormModal({
         </header>
 
         <form onSubmit={handleSubmit}>
+          {saving && <p role="status" className="px-6 pt-4 text-sm">Guardando usuario…</p>}
+          {mode === "create" && <p className="px-6 pt-4 text-sm text-[#7A5055]">Al registrar se enviarán credenciales temporales al correo indicado.</p>}
           <div className="space-y-5 p-6">
             <div>
               <div className="mb-2 flex justify-between">
@@ -176,6 +181,7 @@ export function UserFormModal({
             <button
               type="button"
               onClick={onClose}
+            disabled={saving}
               className="rounded border border-[#E8D8DB] px-5 py-2.5 text-sm font-medium text-[#6B2737]"
             >
               Cancelar
@@ -183,7 +189,7 @@ export function UserFormModal({
 
             <button
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || saving}
               className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {mode === "create" ? "Registrar" : "Guardar cambios"}

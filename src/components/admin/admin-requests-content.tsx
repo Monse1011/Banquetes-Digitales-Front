@@ -6,6 +6,8 @@ type AdminRequestsContentProps = {
   error: string;
   requests: AdminRequest[];
   onApprove: (requestId: number) => void;
+  approvingIds: number[];
+  approvalErrors: Record<number, string>;
 };
 
 export function AdminRequestsContent({
@@ -13,13 +15,11 @@ export function AdminRequestsContent({
   error,
   requests,
   onApprove,
+  approvingIds,
+  approvalErrors,
 }: AdminRequestsContentProps) {
   if (isLoading) {
-    return (
-      <p className="text-sm text-[#7A5055]">
-        Cargando solicitudes...
-      </p>
-    );
+    return <p className="text-sm text-[#7A5055]">Cargando solicitudes...</p>;
   }
 
   if (error) {
@@ -32,9 +32,7 @@ export function AdminRequestsContent({
 
   if (requests.length === 0) {
     return (
-      <p className="text-sm text-[#7A5055]">
-        No hay solicitudes registradas.
-      </p>
+      <p className="text-sm text-[#7A5055]">No hay solicitudes registradas.</p>
     );
   }
 
@@ -42,6 +40,8 @@ export function AdminRequestsContent({
     <AdminRequestsTable
       requests={requests}
       onApprove={onApprove}
+      approvingIds={approvingIds}
+      approvalErrors={approvalErrors}
     />
   );
 }

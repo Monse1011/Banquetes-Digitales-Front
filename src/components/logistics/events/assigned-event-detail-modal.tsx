@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+
 
 import type {
   AssignedEvent,
@@ -9,6 +9,7 @@ import type {
 
 type Props = {
   event: AssignedEvent;
+  actionsConnected?: boolean;
   onClose: () => void;
   onRegisterAgreements: (event: AssignedEvent) => void;
   onViewProposal: (event: AssignedEvent) => void;
@@ -49,6 +50,7 @@ const STATUS_CONFIG: Record<
     label: "Finalizado",
     classes: "bg-[#ECEFF1] text-[#455A64]",
   },
+  REJECTED: { label: "Rechazada", classes: "bg-[#FDECEC] text-[#C0392B]" },
   CANCELLED: {
     label: "Cancelado",
     classes: "bg-[#FDECEC] text-[#C0392B]",
@@ -85,6 +87,7 @@ function formatLongDate(value: string) {
 
 export function AssignedEventDetailModal({
   event,
+  actionsConnected = true,
   onClose,
   onRegisterAgreements,
   onViewProposal,
@@ -94,9 +97,9 @@ export function AssignedEventDetailModal({
 
   const isHistorical =
     event.status === "COMPLETED" ||
-    event.status === "CANCELLED";
+    event.status === "CANCELLED" || event.status === "REJECTED";
 
-    const router = useRouter();
+
 
 
   const canRegisterAgreements =
@@ -174,7 +177,7 @@ export function AssignedEventDetailModal({
                   {event.start_time} - {event.end_time} hrs{" "}
                   <span className="text-[11px] italic text-[#9A7075]">
                     (
-                    {event.schedule_status === "PROPOSED"
+                    {event.schedule_status === null ? "Sin registrar" : event.schedule_status === "PROPOSED"
                       ? "propuesto"
                       : "confirmado"}
                     )
@@ -201,7 +204,7 @@ export function AssignedEventDetailModal({
 
             {event.services.length === 0 ? (
               <p className="text-sm text-[#7A5055]">
-                Sin registrar
+                No se recibieron servicios seleccionados.
               </p>
             ) : (
               <div className="space-y-4">
@@ -213,7 +216,7 @@ export function AssignedEventDetailModal({
 
                     {service.resources.length === 0 ? (
                       <p className="text-sm text-[#7A5055]">
-                        Sin registrar
+                        No se recibieron recursos para este servicio.
                       </p>
                     ) : (
                       <div className="space-y-1">
@@ -241,7 +244,10 @@ export function AssignedEventDetailModal({
           </section>
         </div>
 
-        {!isHistorical && (
+        {!actionsConnected && ["PROPOSAL_GENERATED", "CONFIRMED", "COMPLETED"].includes(event.status) && <footer className="border-t border-[#E8D8DB] p-6"><button type="button" onClick={() => onViewProposal(event)} className="rounded bg-[#6B2737] px-5 py-2.5 text-sm text-white">Ver propuesta</button></footer>}
+        {!isHistorical && !actionsConnected && canRegisterAgreements && <footer className="border-t border-[#E8D8DB] p-6"><button type="button" onClick={() => onRegisterAgreements(event)} className="rounded bg-[#6B2737] px-5 py-2.5 text-sm text-white">Registrar acuerdos</button></footer>}
+        {!isHistorical && !actionsConnected && (event.status === "ASSIGNED" || event.status === "COORDINATION_INCOMPLETE") && <footer className="border-t border-[#E8D8DB] p-6"><button type="button" onClick={() => onConfirmResources(event)} className="rounded bg-[#6B2737] px-5 py-2.5 text-sm text-white">Confirmar recursos</button></footer>}
+        {!isHistorical && actionsConnected && (
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E8D8DB] p-6">
             <div className="flex flex-wrap gap-2">
               <button

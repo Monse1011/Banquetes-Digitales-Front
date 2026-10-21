@@ -1,62 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminRequests, approveAdminRequest, type AdminRequest } from "@/lib/api/admin";
+import {
+  getAdminRequests,
+  approveAdminRequest,
+  type AdminRequest,
+} from "@/lib/api/admin";
 import { AdminRequestsContent } from "@/components/admin/admin-requests-content";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function AdminPage() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const approving = useRef(new Set<number>());
+  const [approvingIds, setApprovingIds] = useState<number[]>([]);
+  const [approvalErrors, setApprovalErrors] = useState<Record<number, string>>(
+    {},
+  );
 
   async function handleApprove(requestId: number) {
-    if (!token) {
+    if (!user || approving.current.has(requestId)) {
       return;
     }
 
-    await approveAdminRequest(token, requestId);
-
-    setRequests((currentRequests) =>
-      currentRequests.map((request) =>
-        request.request_id === requestId
-          ? { ...request, status: "Aprobada" }
-          : request,
-      ),
-    );
+    approving.current.add(requestId);
+    setApprovingIds([...approving.current]);
+    setApprovalErrors((current) => ({ ...current, [requestId]: "" }));
+    try {
+      const approved = await approveAdminRequest(requestId);
+      setRequests((currentRequests) =>
+        currentRequests.map((request) =>
+          request.request_id === requestId
+            ? { ...request, status: approved.status }
+            : request,
+        ),
+      );
+    } catch (cause) {
+      setApprovalErrors((current) => ({
+        ...current,
+        [requestId]:
+          cause instanceof Error
+            ? cause.message
+            : "No fue posible aprobar la solicitud. Intenta de nuevo.",
+      }));
+    } finally {
+      approving.current.delete(requestId);
+      setApprovingIds([...approving.current]);
+    }
   }
 
-
   useEffect(() => {
-    if (!token || user?.role !== "admin") {
+    if (user?.role !== "ADMIN") {
       router.replace("/login");
       return;
     }
-
-    const authToken = token;
 
     async function loadRequests() {
       try {
         setError("");
 
-        const response = await getAdminRequests(authToken);
+        const response = await getAdminRequests();
 
         setRequests(response.data);
       } catch (error) {
         const typedError = error as Error & { status?: number };
 
         if (typedError.status === 403) {
-          setError(
-            "El backend rechazó el acceso al panel administrativo.",
-          );
+          setError("El backend rechazó el acceso al panel administrativo.");
         } else {
           setError(
-            typedError.message ||
-              "No fue posible cargar las solicitudes.",
+            typedError.message || "No fue posible cargar las solicitudes.",
           );
         }
       } finally {
@@ -65,7 +83,7 @@ export default function AdminPage() {
     }
 
     loadRequests();
-  }, [token, user?.role, router]);
+  }, [user?.role, router]);
 
   return (
     <main className="p-10">
@@ -108,6 +126,8 @@ export default function AdminPage() {
             error={error}
             requests={requests}
             onApprove={handleApprove}
+            approvingIds={approvingIds}
+            approvalErrors={approvalErrors}
           />
         </section>
       </section>

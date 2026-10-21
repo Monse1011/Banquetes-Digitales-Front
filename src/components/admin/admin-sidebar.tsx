@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { logout } from "@/lib/api/auth";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 
 const navigationItems = [
+  { label: "Mis eventos", href: "/logistics" },
   {
     label: "Solicitudes",
     href: "/admin",
@@ -36,9 +39,21 @@ export function AdminSidebar() {
   const router = useRouter();
   const { user, clearSession } = useAuth();
 
-  function handleLogout() {
-    clearSession();
-    router.replace("/login");
+  const [leaving, setLeaving] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  async function handleLogout() {
+    if (leaving) return;
+    setLeaving(true);
+    setLogoutError("");
+    try {
+      await logout();
+      clearSession();
+      router.replace("/login");
+    } catch {
+      setLogoutError("No se pudo cerrar la sesión. Intenta nuevamente.");
+    } finally {
+      setLeaving(false);
+    }
   }
 
   return (
@@ -80,12 +95,14 @@ export function AdminSidebar() {
           <p className="mt-0.5 text-xs text-[#7A5055]">Administrador</p>
         </div>
 
+        {logoutError && <p role="alert">{logoutError}</p>}
         <button
           type="button"
+          disabled={leaving}
           onClick={handleLogout}
           className="w-full rounded border border-[#E8D8DB] px-3 py-2 text-xs font-medium text-[#7A5055] transition-colors hover:bg-[#F5EBE8]"
         >
-          Cerrar sesión
+          {leaving ? "Cerrando sesión…" : "Volver al acceso"}
         </button>
       </footer>
     </aside>

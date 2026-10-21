@@ -1,445 +1,355 @@
 "use client";
-
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-
-import { useLogisticsMock } from "@/lib/logistics/logistics-mock-context";
-import { ResourceConfirmationTable } from "@/components/logistics/resource-confirmation/resource-confirmation-table";
-import { HumanAssignmentModal } from "@/components/logistics/resource-confirmation/human-assignment-modal";
-
-import type {
-  ConfirmationResource,
-  ResourceConfirmationEvent,
-} from "@/components/logistics/resource-confirmation/resource-confirmation-types";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${value}T12:00:00`));
-}
-
-function updateObservation(
-  resources: ConfirmationResource[],
-  resourceId: number,
-  observation: string,
-) {
-  return resources.map((resource) =>
-    resource.id === resourceId
-      ? {
-          ...resource,
-          observation,
-        }
-      : resource,
-  );
-}
-
-function assignResource(
-  resources: ConfirmationResource[],
-  resourceId: number,
-) {
-  return resources.map((resource) =>
-    resource.id === resourceId
-      ? {
-          ...resource,
-          is_assigned: true,
-          assigned_quantity: resource.requested_quantity,
-        }
-      : resource,
-  );
-}
-
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth/auth-context";
+import {
+  assignEventResource,
+  cancelEventResources,
+  confirmEventResources,
+  listResources,
+  releaseEventResource,
+  resourceLabel,
+  type Resource,
+  type ResourceKind,
+  type ResourceRequest,
+} from "@/lib/api/resources";
+import { confirmationOutcome } from "@/components/logistics/resource-confirmation/confirmation-outcome";
+const kinds: ResourceKind[] = ["HUMAN", "MATERIAL", "LOGISTIC"];
+const buttonClass =
+  "rounded border border-[#D4BFC2] px-3 py-2 text-sm disabled:opacity-50";
+type Draft = { quantity: string; observation: string };
 export default function ResourceConfirmationPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const params = useParams<{ id: string }>();
-  const router = useRouter();
-
-  const {
-  resourceConfirmations,
-  setResourceConfirmations,
-  setAssignedEvents,
-} = useLogisticsMock();
-
-
-  const eventId = Number(params.id);
-
-  const initialEvent =
-    resourceConfirmations.find(
-        (event) => event.id === eventId,
-    );
-
-  const [event, setEvent] =
-    useState<ResourceConfirmationEvent | null>(
-      initialEvent ?? null,
-    );
-
-    const [humanResourceToAssign, setHumanResourceToAssign] =
-        useState<ConfirmationResource | null>(null);
-
+  const id = Number(params.id);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [request, setRequest] = useState<ResourceRequest>();
+  const [drafts, setDrafts] = useState<Record<number, Draft>>({});
+  const [observations, setObservations] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
-  if (!event) {
-    return (
-      <main className="p-10">
-        <section className="mx-auto max-w-6xl">
-          <div className="rounded-lg border border-[#E8D8DB] bg-[#FDFAF8] p-8 text-center">
-            <h1 className="font-display text-2xl font-semibold text-[#2C1A1D]">
-              Evento no encontrado
-            </h1>
-
-            <p className="mt-2 text-sm text-[#7A5055]">
-              No fue posible encontrar la solicitud seleccionada.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => router.push("/logistics")}
-              className="mt-5 rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0]"
-            >
-              Volver a Mis Eventos
-            </button>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  function handleAssign(resource: ConfirmationResource) {
-    if (!event) {
-      return;
-    }
-
-    if (resource.type === "HUMAN") {
-        setHumanResourceToAssign(resource);
-        setMessage("");
-        return;
-    }
-
-    if (resource.type === "MATERIAL") {
-      setEvent({
-        ...event,
-        material_resources: assignResource(
-          event.material_resources,
-          resource.id,
-        ),
+  const [finished, setFinished] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const lock = useRef(false);
+  const observationsLoadedFor = useRef<number | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all(
+      kinds.map((k) => listResources(k, "active", id, controller.signal)),
+    )
+      .then((results) => {
+        if (controller.signal.aborted) return;
+        const rows = results.flatMap((r) => r.resources);
+        setResources(rows);
+        setRequest(results[0].request);
+        setDrafts(
+          Object.fromEntries(
+            rows.map((r) => [
+              r.id,
+              {
+                quantity: String(r.assignment?.requested_quantity ?? 1),
+                observation: r.assignment?.observation ?? "",
+              },
+            ]),
+          ),
+        );
+        if (observationsLoadedFor.current !== id) {
+          setObservations(
+            results[0].request?.pending_observations ??
+              results[0].request?.observations ??
+              "",
+          );
+          observationsLoadedFor.current = id;
+        }
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
-    }
-
-    if (resource.type === "LOGISTIC") {
-      setEvent({
-        ...event,
-        logistic_resources: assignResource(
-          event.logistic_resources,
-          resource.id,
-        ),
-      });
-    }
-
-    setMessage(
-      `${resource.name} fue asignado provisionalmente.`,
-    );
+    return () => controller.abort();
+  }, [id, refresh]);
+  function reload() {
+    setError("");
+    setLoading(true);
+    setRefresh((v) => v + 1);
   }
-
-  function handleObservationChange(
-    type: "HUMAN" | "MATERIAL" | "LOGISTIC",
-    resourceId: number,
-    observation: string,
+  async function perform(
+    action: () => Promise<unknown>,
+    success: string | undefined,
+    reloadAfter = true,
   ) {
-    if (!event) {
-      return;
-    }
-
-    if (type === "HUMAN") {
-      setEvent({
-        ...event,
-        human_resources: updateObservation(
-          event.human_resources,
-          resourceId,
-          observation,
-        ),
-      });
-    }
-
-    if (type === "MATERIAL") {
-      setEvent({
-        ...event,
-        material_resources: updateObservation(
-          event.material_resources,
-          resourceId,
-          observation,
-        ),
-      });
-    }
-
-    if (type === "LOGISTIC") {
-      setEvent({
-        ...event,
-        logistic_resources: updateObservation(
-          event.logistic_resources,
-          resourceId,
-          observation,
-        ),
-      });
-    }
-  }
-
-  function handleCancel() {
-    router.push("/logistics");
-  }
-
-  function handleFinishConfirmation() {
-    if (!event) {
-      return;
-    }
-
-    const allResources = [
-      ...event.human_resources,
-      ...event.material_resources,
-      ...event.logistic_resources,
-    ];
-
-    const sufficientWithoutAssignment =
-      allResources.find(
-        (resource) =>
-          resource.sufficiency === "SUFFICIENT" &&
-          !resource.is_assigned,
-      );
-
-    if (sufficientWithoutAssignment) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await action();
       setMessage(
-        "Debe asignar todos los recursos con estado Suficiente antes de finalizar la confirmación.",
+        success ??
+          (typeof result === "string" ? result : "Operación guardada."),
       );
-      return;
+      if (reloadAfter) reload();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo completar la operación.",
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
     }
-
-    const hasInsufficientResource =
-      allResources.some(
-        (resource) =>
-          resource.sufficiency === "INSUFFICIENT",
-      );
-
-    setEvent({
-      ...event,
-      status: hasInsufficientResource
-        ? "COORDINATION_INCOMPLETE"
-        : "COORDINATION_READY",
-    });
-
-    setResourceConfirmations((current) =>
-        current.map((item) =>
-            item.id === event.id
-            ? {
-                ...item,
-                status: hasInsufficientResource
-                    ? "COORDINATION_INCOMPLETE"
-                    : "COORDINATION_READY",
-                }
-            : item,
-        ),
-        );
-
-        setAssignedEvents((current) =>
-        current.map((item) =>
-            item.id === event.id
-            ? {
-                ...item,
-                status: hasInsufficientResource
-                    ? "COORDINATION_INCOMPLETE"
-                    : "COORDINATION_READY",
-                }
-            : item,
-        ),
-        );
-
-    setMessage(
-      hasInsufficientResource
-        ? "Confirmación finalizada. La solicitud quedó en Coordinación Incompleta."
-        : "Confirmación finalizada. La solicitud quedó en Coordinación Lista.",
-    );
   }
-
+  const dirty = resources.some((r) => {
+    const draft = drafts[r.id];
+    return (
+      draft &&
+      (draft.quantity !== String(r.assignment?.requested_quantity ?? 1) ||
+        draft.observation !== (r.assignment?.observation ?? ""))
+    );
+  });
+  const hasAssignments = resources.some((r) => r.assignment);
   return (
-    <main className="p-10 pb-28">
-      <section className="mx-auto flex max-w-6xl flex-col gap-6">
-        <header>
-          <h1 className="font-display text-3xl font-semibold text-[#2C1A1D]">
-            Confirmación de Recursos
-          </h1>
-
-          <p className="mt-1 text-sm text-[#7A5055]">
-            {event.folio} - {event.client_name}
+    <main className="p-8 text-[#5A3A3E]">
+      <section className="mx-auto max-w-6xl space-y-5">
+        <Link className="underline" href={isAdmin ? "/admin" : "/logistics"}>
+          {isAdmin ? "Volver a solicitudes" : "Volver a Mis Eventos"}
+        </Link>
+        <h1 className="font-display text-3xl text-[#2C1A1D]">
+          Confirmación de Recursos
+        </h1>
+        {request && (
+          <p>
+            {request.folio} · {request.status}
+            <br />
+            {request.event_date} · {request.start_time} – {request.end_time}
           </p>
-        </header>
-
-        {message && (
-          <div className="rounded border border-[#E8D8DB] bg-[#FDFAF8] px-4 py-3 text-sm text-[#5A3A3E]">
-            {message}
-          </div>
         )}
-
-        <section className="rounded-lg border border-[#E8D8DB] bg-[#FDFAF8] p-6">
-          <h2 className="font-display text-lg font-semibold text-[#6B2737]">
-            Resumen del Evento
-          </h2>
-
-          <div className="mt-4 grid gap-6 md:grid-cols-5">
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#7A5055]">
-                Cliente
-              </p>
-
-              <p className="mt-1 text-sm text-[#2C1A1D]">
-                {event.client_name}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#7A5055]">
-                Fecha
-              </p>
-
-              <p className="mt-1 text-sm text-[#2C1A1D]">
-                {formatDate(event.event_date)}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#7A5055]">
-                Hora
-              </p>
-
-              <p className="mt-1 text-sm text-[#2C1A1D]">
-                {event.start_time} - {event.end_time}
-                <span className="ml-1 text-[13px] italic text-[#9A7075]">
-                  (
-                  {event.schedule_status === "PROPOSED"
-                    ? "propuesto"
-                    : "confirmado"}
-                  )
-                </span>
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#7A5055]">
-                Invitados
-              </p>
-
-              <p className="mt-1 text-sm text-[#2C1A1D]">
-                {event.guest_count} personas
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#7A5055]">
-                Servicios
-              </p>
-
-              <p className="mt-1 text-sm text-[#2C1A1D]">
-                {event.services.join(" · ")}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <ResourceConfirmationTable
-          step="01"
-          title="Recursos Humanos"
-          resources={event.human_resources}
-          onAssign={handleAssign}
-          onObservationChange={(
-            resourceId,
-            observation,
-          ) =>
-            handleObservationChange(
-              "HUMAN",
-              resourceId,
-              observation,
-            )
-          }
-        />
-
-        <ResourceConfirmationTable
-          step="02"
-          title="Recursos Materiales"
-          resources={event.material_resources}
-          onAssign={handleAssign}
-          onObservationChange={(
-            resourceId,
-            observation,
-          ) =>
-            handleObservationChange(
-              "MATERIAL",
-              resourceId,
-              observation,
-            )
-          }
-        />
-
-        <ResourceConfirmationTable
-          step="03"
-          title="Recursos Logísticos"
-          resources={event.logistic_resources}
-          onAssign={handleAssign}
-          onObservationChange={(
-            resourceId,
-            observation,
-          ) =>
-            handleObservationChange(
-              "LOGISTIC",
-              resourceId,
-              observation,
-            )
-          }
-        />
-
-        <div className="flex justify-between border-t border-[#E8D8DB] pt-4">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="rounded border border-[#6B2737] px-6 py-3 text-sm font-medium text-[#6B2737]"
+        <p>
+          Selecciona las personas y cantidades necesarias. Guarda cada recurso
+          antes de finalizar la confirmación.
+        </p>
+        {error && (
+          <p role="alert" className="text-red-700">
+            {error}
+          </p>
+        )}
+        {message && <p role="status">{message}</p>}
+        {finished && (
+          <Link
+            className="inline-block underline"
+            href={`/logistics/acuerdos/${id}`}
           >
-            Cancelar
-          </button>
-
+            Registrar acuerdos con el cliente
+          </Link>
+        )}
+        {!finished && (
           <button
-            type="button"
-            onClick={handleFinishConfirmation}
-            className="rounded bg-[#6B2737] px-6 py-3 text-sm font-medium text-[#FDF6F0]"
+            className={buttonClass}
+            disabled={busy || loading || dirty}
+            onClick={reload}
           >
-            Finalizar confirmación
+            Actualizar disponibilidad
           </button>
-
-          {humanResourceToAssign && (
-            <HumanAssignmentModal
-                resource={humanResourceToAssign}
-                onClose={() =>
-                setHumanResourceToAssign(null)
-                }
-                onConfirm={() => {
-                setEvent((current) => {
-                    if (!current) {
-                    return current;
-                    }
-
-                    return {
-                    ...current,
-                    human_resources: assignResource(
-                        current.human_resources,
-                        humanResourceToAssign.id,
-                    ),
-                    };
-                });
-
-                setMessage(
-                    `${humanResourceToAssign.name} fue asignado provisionalmente.`,
-                );
-
-                setHumanResourceToAssign(null);
-                }}
-            />
-            )}
-        </div>
+        )}
+        {loading ? (
+          <p>Cargando disponibilidad…</p>
+        ) : (
+          !finished && (
+            <>
+              {kinds.map((kind) => (
+                <section
+                  key={kind}
+                  className="rounded border border-[#E8D8DB] bg-[#FDFAF8] p-5"
+                >
+                  <h2 className="font-display text-xl">
+                    Recursos {resourceLabel[kind]}
+                  </h2>
+                  {!resources.some((r) => r.type === kind) && (
+                    <p className="mt-3">
+                      No hay recursos activos de este tipo.
+                    </p>
+                  )}
+                  {resources
+                    .filter((r) => r.type === kind)
+                    .map((r) => {
+                      const draft = drafts[r.id];
+                      const otherDirty = resources.some(
+                        (other) =>
+                          other.id !== r.id &&
+                          drafts[other.id] &&
+                          (drafts[other.id].quantity !==
+                            String(other.assignment?.requested_quantity ?? 1) ||
+                            drafts[other.id].observation !==
+                              (other.assignment?.observation ?? "")),
+                      );
+                      return (
+                        <form
+                          key={r.id}
+                          className="mt-4 border-t border-[#E8D8DB] pt-4"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void perform(
+                              () =>
+                                assignEventResource(
+                                  id,
+                                  r.id,
+                                  Number(draft.quantity),
+                                  draft.observation,
+                                ),
+                              "Recurso guardado.",
+                            );
+                          }}
+                        >
+                          <fieldset
+                            disabled={busy || loading || otherDirty}
+                            className="flex flex-wrap items-end gap-4"
+                          >
+                            <div className="min-w-48">
+                              <h3 className="font-semibold">{r.name}</h3>
+                              {r.operative_role && <p>{r.operative_role}</p>}
+                              <p>Disponible: {r.available_quantity}</p>
+                              {r.assignment?.sufficiency === "Insuficiente" && (
+                                <p className="text-red-700">
+                                  Solicitaste {r.assignment.requested_quantity};
+                                  hay {r.available_quantity} disponibles para
+                                  este horario. Reduce la cantidad, guarda los
+                                  cambios y vuelve a confirmar.
+                                </p>
+                              )}
+                              {r.assignment && (
+                                <p>
+                                  {r.assignment.sufficiency} ·{" "}
+                                  {r.assignment.status} · Asignado:{" "}
+                                  {r.assignment.assigned_quantity}
+                                </p>
+                              )}
+                            </div>
+                            <label>
+                              Cantidad solicitada
+                              <input
+                                className="block w-24 rounded border p-2"
+                                type="number"
+                                min="1"
+                                step="1"
+                                max={kind === "HUMAN" ? 1 : undefined}
+                                required
+                                value={draft.quantity}
+                                onChange={(e) =>
+                                  setDrafts((v) => ({
+                                    ...v,
+                                    [r.id]: {
+                                      ...draft,
+                                      quantity: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="grow">
+                              Observación
+                              <input
+                                className="block w-full rounded border p-2"
+                                value={draft.observation}
+                                onChange={(e) =>
+                                  setDrafts((v) => ({
+                                    ...v,
+                                    [r.id]: {
+                                      ...draft,
+                                      observation: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <button
+                              disabled={otherDirty}
+                              className={buttonClass}
+                            >
+                              {r.assignment ? "Guardar cambios" : "Asignar"}
+                            </button>
+                            {r.assignment?.status === "Provisional" && (
+                              <button
+                                type="button"
+                                disabled={otherDirty}
+                                className={buttonClass}
+                                onClick={() =>
+                                  void perform(
+                                    () => releaseEventResource(id, r.id),
+                                    "Asignación provisional liberada.",
+                                  )
+                                }
+                              >
+                                Liberar
+                              </button>
+                            )}
+                          </fieldset>
+                        </form>
+                      );
+                    })}
+                </section>
+              ))}
+              <label className="block">
+                Observaciones generales
+                <textarea
+                  disabled={busy}
+                  className="mt-2 block w-full rounded border p-3"
+                  value={observations}
+                  onChange={(e) => setObservations(e.target.value)}
+                />
+              </label>
+              {dirty && (
+                <p>Guarda los cambios de cada recurso antes de finalizar.</p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  className={buttonClass}
+                  disabled={busy || !hasAssignments || dirty}
+                  onClick={() =>
+                    void perform(
+                      async () => {
+                        const result = await confirmEventResources(
+                          id,
+                          observations,
+                        );
+                        setRequest((r) =>
+                          r ? { ...r, status: result.data.current_status } : r,
+                        );
+                        const outcome = confirmationOutcome(
+                          result.data.current_status,
+                        );
+                        setFinished(outcome.complete);
+                        if (!outcome.complete) reload();
+                        return outcome.message;
+                      },
+                      undefined,
+                      false,
+                    )
+                  }
+                >
+                  Finalizar confirmación
+                </button>
+                <button
+                  className={buttonClass}
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      await cancelEventResources(id);
+                      setObservations("");
+                    }, "Asignaciones provisionales canceladas.")
+                  }
+                >
+                  Cancelar asignaciones provisionales
+                </button>
+              </div>
+            </>
+          )
+        )}
       </section>
     </main>
   );

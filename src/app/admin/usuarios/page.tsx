@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { UserDetailModal } from "@/components/admin/users/user-detail-modal";
 import { UserFormModal } from "@/components/admin/users/user-form-modal";
-import { MOCK_USERS } from "@/components/admin/users/user-mock";
+import { getUsers, getUser, saveUser, changeUserStatus, resendUserCredentials } from "@/lib/api/users";
+import { ApiError } from "@/lib/api/http";
+import { useAuth } from "@/lib/auth/auth-context";
 import { UsersFilters } from "@/components/admin/users/user-filters";
 import { UsersTable } from "@/components/admin/users/users-table";
 
@@ -17,8 +19,27 @@ import type {
 
 export default function UsersPage() {
   const [users, setUsers] =
-    useState<AdminUser[]>(MOCK_USERS);
+    useState<AdminUser[]>([]);
 
+  const { user: sessionUser } = useAuth();
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  async function reload() {
+    setLoading(true); setError("");
+    try { setUsers(await getUsers()); }
+    catch (e) { setError(e instanceof Error ? e.message : "No se pudieron cargar los usuarios."); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => {
+    let active = true;
+    getUsers().then((rows) => { if (active) setUsers(rows); })
+      .catch((e) => { if (active) setError(e instanceof Error ? e.message : "No se pudieron cargar los usuarios."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
   const [search, setSearch] = useState("");
   const [role, setRole] =
     useState<"all" | UserRole>("all");
@@ -39,7 +60,7 @@ export default function UsersPage() {
     const normalizedSearch =
       search.trim().toLowerCase();
 
-    return users.filter((user) => {
+    return users.map((user) => ({ ...user, is_current_user: user.id === Number(sessionUser?.id_user) })).filter((user) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         user.full_name
@@ -61,110 +82,58 @@ export default function UsersPage() {
         matchesStatus
       );
     });
-  }, [users, search, role, status]);
+  }, [users, search, role, status, sessionUser?.id_user]);
 
   function handleAddUser() {
+    if (busyRef.current) return;
     setEditingUser(null);
     setFormError(null);
     setShowForm(true);
   }
 
   function handleEditUser(user: AdminUser) {
+    if (busyRef.current) return;
     setEditingUser(user);
     setFormError(null);
     setShowForm(true);
   }
 
-  function handleSubmit(values: UserFormValues) {
-    const normalizedEmail =
-      values.email.trim().toLowerCase();
-
-    const duplicatedEmail = users.some(
-      (user) =>
-        user.id !== editingUser?.id &&
-        user.email.trim().toLowerCase() ===
-          normalizedEmail,
-    );
-
-    if (duplicatedEmail) {
-      setFormError(
-        "Ya existe un usuario registrado con el correo electrónico indicado.",
-      );
-      return;
-    }
-
-    const selectedRole = values.role;
-
-    if (!selectedRole) {
-    return;
-    }
-
-
-    if (editingUser) {
-      setUsers((currentUsers) =>
-        currentUsers.map((user) =>
-          user.id === editingUser.id
-            ? {
-                ...user,
-                full_name: values.full_name,
-                email: values.email,
-                role: selectedRole,
-                updated_at:
-                  new Date().toISOString(),
-              }
-            : user,
-        ),
-      );
-    } else {
-      const nextId =
-        Math.max(
-          ...users.map((user) => user.id),
-          0,
-        ) + 1;
-
-      const newUser: AdminUser = {
-        id: nextId,
-        employee_id: String(1000 + nextId),
-        full_name: values.full_name,
-        email: values.email,
-        role: selectedRole,
-        status: "ACTIVE",
-        last_access: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setUsers((currentUsers) => [
-        ...currentUsers,
-        newUser,
-      ]);
-    }
-
-    setShowForm(false);
-    setEditingUser(null);
-    setFormError(null);
+  async function handleSubmit(values: UserFormValues) {
+    if (busyRef.current || !values.role) return;
+    busyRef.current = true; setBusy(true); setFormError(null); setNotice("");
+    try {
+      const saved = await saveUser(values, editingUser?.id);
+      setShowForm(false); setEditingUser(null);
+      setNotice(`Usuario ${saved.employee_id} ${editingUser ? "actualizado" : "registrado"}.`);
+      await reload();
+    } catch(e) {
+      if (e instanceof ApiError && e.status === 502) {
+        setShowForm(false); setEditingUser(null); setNotice(e.message); await reload();
+      } else setFormError(e instanceof Error ? e.message : "No se pudo guardar el usuario.");
+    } finally { busyRef.current = false; setBusy(false); }
   }
-
-  function handleChangeStatus(user: AdminUser) {
-    if (user.is_current_user) {
-      return;
-    }
-
-    setUsers((currentUsers) =>
-      currentUsers.map((currentUser) =>
-        currentUser.id === user.id
-          ? {
-              ...currentUser,
-              status:
-                currentUser.status === "ACTIVE"
-                  ? "INACTIVE"
-                  : "ACTIVE",
-              updated_at:
-                new Date().toISOString(),
-            }
-          : currentUser,
-      ),
-    );
+  async function handleChangeStatus(user: AdminUser) {
+    if (busyRef.current || user.is_current_user) return;
+    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    try {
+      await changeUserStatus(user.id, user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE");
+      setNotice("Estado actualizado."); await reload();
+    } catch(e) { setError(e instanceof Error ? e.message : "No se pudo cambiar el estado."); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  async function handleView(user: AdminUser) {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setError("");
+    try { setSelectedUser(await getUser(user.id)); }
+    catch(e) { setError(e instanceof Error ? e.message : "No se pudo cargar el detalle."); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  async function handleResend() {
+    if (!selectedUser || busyRef.current) return;
+    busyRef.current = true; setBusy(true); setError("");
+    try { await resendUserCredentials(selectedUser.id); setNotice("Credenciales reenviadas."); }
+    catch(e) { setError(e instanceof Error ? e.message : "No se pudieron reenviar las credenciales."); }
+    finally { busyRef.current = false; setBusy(false); }
   }
 
   return (
@@ -185,6 +154,7 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={handleAddUser}
+              disabled={busy || loading}
               className="rounded bg-[#6B2737] px-5 py-2.5 text-sm font-medium text-[#FDF6F0]"
             >
               + Agregar usuario
@@ -200,12 +170,16 @@ export default function UsersPage() {
             onStatusChange={setStatus}
           />
 
-          <UsersTable
+          {notice && <p role="status" className="text-green-800">{notice}</p>}
+          {error && <p role="alert" className="text-red-700">{error}</p>}
+          {loading && <p role="status">Cargando usuarios…</p>}
+          <button type="button" disabled={busy || loading} onClick={() => void reload()} className="self-start text-sm underline">Actualizar usuarios</button>
+          {!loading && <UsersTable
             users={filteredUsers}
-            onView={setSelectedUser}
+            onView={handleView}
             onEdit={handleEditUser}
             onChangeStatus={handleChangeStatus}
-          />
+          />}
         </section>
       </main>
 
@@ -223,7 +197,9 @@ export default function UsersPage() {
               : undefined
           }
           error={formError}
+          saving={busy}
           onClose={() => {
+            if (busyRef.current) return;
             setShowForm(false);
             setEditingUser(null);
             setFormError(null);
@@ -235,6 +211,9 @@ export default function UsersPage() {
       {selectedUser && (
         <UserDetailModal
           user={selectedUser}
+          busy={busy}
+          message={error || notice}
+          onResend={handleResend}
           onClose={() => setSelectedUser(null)}
         />
       )}

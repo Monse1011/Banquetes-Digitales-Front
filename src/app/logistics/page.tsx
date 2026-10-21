@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useLogisticsMock } from "@/lib/logistics/logistics-mock-context";
+import { getLogisticsEvents, getLogisticsEvent } from "@/lib/api/logistics-events";
+import { useAuth } from "@/lib/auth/auth-context";
 
 import { AssignedEventDetailModal } from "@/components/logistics/events/assigned-event-detail-modal";
 
@@ -30,6 +31,7 @@ const ACTIVE_STATUSES: LogisticsEventStatus[] = [
 const HISTORY_STATUSES: LogisticsEventStatus[] = [
   "COMPLETED",
   "CANCELLED",
+  "REJECTED",
 ];
 
 const STATUS_OPTIONS: {
@@ -60,6 +62,7 @@ const STATUS_OPTIONS: {
     value: "COMPLETED",
     label: "Finalizado",
   },
+  { value: "REJECTED", label: "Rechazada" },
   {
     value: "CANCELLED",
     label: "Cancelado",
@@ -70,7 +73,13 @@ export default function LogisticsEventsPage() {
 
   const router = useRouter();
 
-  const { assignedEvents } = useLogisticsMock();
+  const { user } = useAuth();
+  const [assignedEvents, setAssignedEvents] = useState<AssignedEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const [opening, setOpening] = useState(false);
+  const detailController = useRef<AbortController | null>(null);
     
   const [viewMode, setViewMode] =
     useState<ViewMode>("active");
@@ -82,6 +91,28 @@ export default function LogisticsEventsPage() {
 
   const [selectedEvent, setSelectedEvent] =
     useState<AssignedEvent | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getLogisticsEvents(viewMode, controller.signal).then((rows) => {
+      if (!controller.signal.aborted) setAssignedEvents(rows);
+    }).catch((e) => {
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "No se pudieron cargar los eventos.");
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [viewMode, refresh, user?.id_user]);
+  useEffect(() => () => detailController.current?.abort(), []);
+  function refreshEvents() {
+    setError(""); setLoading(true); setAssignedEvents([]); setRefresh((v) => v + 1);
+  }
+  async function openDetail(event: AssignedEvent) {
+    detailController.current?.abort();
+    const controller = new AbortController(); detailController.current = controller;
+    setOpening(true); setError("");
+    try { const detail = await getLogisticsEvent(event.id, controller.signal); if (!controller.signal.aborted) setSelectedEvent(detail); }
+    catch(e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "No se pudo cargar el detalle."); }
+    finally { if (!controller.signal.aborted) setOpening(false); }
+  }
 
   const visibleStatusOptions = useMemo(() => {
     const allowedStatuses =
@@ -124,14 +155,17 @@ export default function LogisticsEventsPage() {
       ).getTime();
 
       if (aDate !== bDate) {
-        return aDate - bDate;
+        return viewMode === "history" ? bDate - aDate : aDate - bDate;
       }
 
       return a.folio.localeCompare(b.folio);
     });
-  }, [viewMode, statusFilter]);
+  }, [assignedEvents, viewMode, statusFilter]);
 
   function changeView(mode: ViewMode) {
+    if (mode === viewMode) return;
+    detailController.current?.abort(); setOpening(false); setSelectedEvent(null);
+    setLoading(true); setError(""); setAssignedEvents([]);
     setViewMode(mode);
     setStatusFilter("all");
   }
@@ -209,16 +243,20 @@ export default function LogisticsEventsPage() {
             </select>
           </div>
 
-          <AssignedEventsList
+          <button type="button" onClick={refreshEvents} disabled={loading} className="self-start text-sm text-[#6B2737] underline">Actualizar eventos</button>
+          {error && <p role="alert" className="text-red-700">{error}</p>}
+          {(loading || opening) && <p role="status">{opening ? "Cargando detalle…" : "Cargando eventos…"}</p>}
+          {!loading && !error && <AssignedEventsList
             events={filteredEvents}
-            onViewDetail={setSelectedEvent}
-          />
+            onViewDetail={openDetail}
+          />}
         </section>
       </main>
 
       {selectedEvent && (
         <AssignedEventDetailModal
           event={selectedEvent}
+          actionsConnected={false}
           onClose={() =>
             setSelectedEvent(null)
           }
@@ -227,7 +265,7 @@ export default function LogisticsEventsPage() {
                 `/logistics/acuerdos/${event.id}`,
             );
           }}
-          onViewProposal={() => {}}
+          onViewProposal={(event) => router.push(`/logistics/propuesta/${event.id}`)}
           onConfirmResources={(event) => {
             router.push(
                 `/logistics/recursos/${event.id}`,

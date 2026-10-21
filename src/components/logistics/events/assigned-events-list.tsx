@@ -39,6 +39,7 @@ const STATUS_CONFIG: Record<
     label: "Finalizado",
     classes: "bg-[#ECEFF1] text-[#455A64]",
   },
+  REJECTED: { label: "Rechazada", classes: "bg-[#FDECEC] text-[#C0392B]" },
   CANCELLED: {
     label: "Cancelado",
     classes: "bg-[#FDECEC] text-[#C0392B]",

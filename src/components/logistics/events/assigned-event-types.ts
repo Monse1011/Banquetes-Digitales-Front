@@ -5,7 +5,8 @@ export type LogisticsEventStatus =
   | "PROPOSAL_GENERATED"
   | "CONFIRMED"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REJECTED";
 
 export type ScheduleStatus =
   | "PROPOSED"
@@ -42,7 +43,7 @@ export interface AssignedEvent {
   location: string | null;
   guest_count: number | null;
 
-  schedule_status: ScheduleStatus;
+  schedule_status: ScheduleStatus | null;
 
   services: RequestedService[];
 }

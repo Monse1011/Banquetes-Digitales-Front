@@ -72,7 +72,7 @@ export function AgreementForm({
 
     const [humanResourceToSelect, setHumanResourceToSelect] =
         useState<AgreementResource | null>(null);
-    const [humanSelections, setHumanSelections] =
+    const [, setHumanSelections] =
         useState<Record<number, number[]>>({});
         
   const [errors, setErrors] =

@@ -1,342 +1,136 @@
 "use client";
-
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { MonthCalendar } from "@/components/logistics/calendar/month-calendar";
-import { MOCK_CALENDAR_EVENTS } from "@/components/logistics/calendar/calendar-mocks";
-
 import type { CalendarEvent } from "@/components/logistics/calendar/calendar-types";
+import { getCalendarEvents, eventOccupiesDay, editCalendarEvent, cancelCalendarEvent, retryCalendarSync } from "@/lib/api/calendar";
+import { agreementError } from "@/lib/api/agreements";
+import { useAuth } from "@/lib/auth/auth-context";
 
 import { EditCalendarEventModal } from "@/components/logistics/calendar/edit-calendar-event-modal";
 
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function today() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Merida", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
-
-function formatSelectedDate(dateKey: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(`${dateKey}T12:00:00`));
-}
-
-function formatTime(dateTime: string) {
-  return dateTime.slice(11, 16);
-}
-
-function getStatusLabel(status: CalendarEvent["status"]) {
-  if (status === "CONFIRMED") {
-    return "Confirmado";
-  }
-
-  if (status === "COMPLETED") {
-    return "Finalizado";
-  }
-
-  return "Cancelado";
-}
-
 export default function LogisticsCalendarPage() {
-  const router = useRouter();
-
-  const [eventToEdit, setEventToEdit] =
-    useState<CalendarEvent | null>(null);
-
-  const [events, setEvents] =
-    useState<CalendarEvent[]>(MOCK_CALENDAR_EVENTS);
-
-  const [currentMonth, setCurrentMonth] =
-    useState(new Date(2026, 9, 1));
-
-  const [selectedDate, setSelectedDate] =
-    useState("2026-10-15");
-
-  const [showCancelled, setShowCancelled] =
-    useState(false);
-
-  const [message, setMessage] = useState("");
-
-  const selectedEvents = useMemo(() => {
-    return events.filter((event) => {
-      const matchesDate =
-        event.start_datetime.startsWith(selectedDate);
-
-      const visibleByStatus =
-        showCancelled ||
-        event.status !== "CANCELLED";
-
-      return matchesDate && visibleByStatus;
+  const { user } = useAuth();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(`${today()}T12:00:00`));
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const [editing, setEditing] = useState<CalendarEvent | null>(null);
+  const [cancelling, setCancelling] = useState<CalendarEvent | null>(null);
+  const [pending, setPending] = useState(false);
+  const mutation = useRef(false);
+  const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
+  function reload() { setLoading(true); setError(""); setRefresh((v) => v + 1); }
+  async function retrySync(id: number) {
+    if (mutation.current) return;
+    mutation.current = true; setPending(true); setNotice(""); setError("");
+    try {
+      const result = await retryCalendarSync(id);
+      const synced = ["Sincronizado", "SYNCED"].includes(result.data.sync_status);
+      setNotice(synced ? "Sincronización completada con Google Calendar." : (result.message || "La sincronización sigue pendiente. El backend continuará reintentando."));
+      reload();
+    } catch (e) { setError(agreementError(e)); }
+    finally { mutation.current = false; setPending(false); }
+  }
+  async function confirmCancellation() {
+    if (!cancelling || mutation.current) return;
+    mutation.current = true; setPending(true); setActionError("");
+    try {
+      await cancelCalendarEvent(cancelling.event_id);
+      setCancelling(null); setShowCancelled(true);
+      setNotice("Evento cancelado. Puedes consultarlo con Mostrar cancelados."); reload();
+    } catch (e) { setActionError(agreementError(e)); }
+    finally { mutation.current = false; setPending(false); }
+  }
+  useEffect(() => {
+    const controller = new AbortController();
+    getCalendarEvents(user?.role === "ADMIN", controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
+      setEvents(result);
+      const requested = Number(new URLSearchParams(window.location.search).get("request"));
+      const target = result.find((event) => event.request_numeric_id === requested);
+      if (target) {
+        const date = target.start_datetime.slice(0, 10);
+        setSelectedDate(date);
+        setCurrentMonth(new Date(`${date}T12:00:00`));
+      }
+    }).catch((e) => {
+      if (!controller.signal.aborted) setError(agreementError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
     });
-  }, [events, selectedDate, showCancelled]);
-
-  function handlePreviousMonth() {
-    setCurrentMonth((current) => {
-      const next = new Date(current);
-      next.setMonth(current.getMonth() - 1);
-      return next;
-    });
+    return () => controller.abort();
+  }, [user?.role, refresh]);
+  function changeMonth(offset: number) {
+    setCurrentMonth((date) => new Date(date.getFullYear(), date.getMonth() + offset, 1));
   }
-
-  function handleNextMonth() {
-    setCurrentMonth((current) => {
-      const next = new Date(current);
-      next.setMonth(current.getMonth() + 1);
-      return next;
-    });
-  }
-
-  function handleRetrySync(eventId: number) {
-    setEvents((current) =>
-      current.map((event) =>
-        event.event_id === eventId
-          ? {
-              ...event,
-              sync_status: "SYNCED",
-              google_event_id:
-                event.google_event_id ??
-                `gcal-mock-${event.event_id}`,
-            }
-          : event,
-      ),
-    );
-
-    setMessage(
-      "Sincronización completada correctamente en modo mock.",
-    );
-  }
-
-  function handleEdit(event: CalendarEvent) {
-    setEventToEdit(event);
-    setMessage("");
-    }
-
-    function handleSaveEdit(
-        eventId: number,
-        values: {
-            location: string;
-            start_datetime: string;
-            end_datetime: string;
-        },
-        ) {
-        setEvents((current) =>
-            current.map((event) =>
-            event.event_id === eventId
-                ? {
-                    ...event,
-                    location: values.location,
-                    start_datetime:
-                    values.start_datetime,
-                    end_datetime:
-                    values.end_datetime,
-                    sync_status: "PENDING",
-                }
-                : event,
-            ),
-        );
-
-        setEventToEdit(null);
-
-        setMessage(
-            "Evento actualizado. Pendiente de sincronización en modo mock.",
-        );
-        }
-
-  function handleCancel(event: CalendarEvent) {
-    const confirmed = window.confirm(
-      "¿Está seguro de que desea cancelar este evento? Esta acción liberará los recursos asignados.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setEvents((current) =>
-      current.map((item) =>
-        item.event_id === event.event_id
-          ? {
-              ...item,
-              status: "CANCELLED",
-            }
-          : item,
-      ),
-    );
-
-    setMessage(
-      `${event.folio} fue cancelado en modo mock.`,
-    );
-  }
-
+  const selected = events.filter((event) => eventOccupiesDay(event, selectedDate) && (showCancelled || event.status !== "CANCELLED"));
   return (
-    <main className="p-10">
+    <main className="p-10 text-[#5A3A3E]">
       <section className="mx-auto flex max-w-6xl flex-col gap-6">
-        <header>
-          <h1 className="font-display text-3xl font-semibold text-[#2C1A1D]">
-            Calendario de Eventos
-          </h1>
-        </header>
-
-        {message && (
-          <div className="rounded border border-[#E8D8DB] bg-[#FDFAF8] px-4 py-3 text-sm text-[#5A3A3E]">
-            {message}
-          </div>
-        )}
-
-        <MonthCalendar
-          currentMonth={currentMonth}
-          selectedDate={selectedDate}
-          events={events}
-          showCancelled={showCancelled}
-          onPreviousMonth={handlePreviousMonth}
-          onNextMonth={handleNextMonth}
-          onSelectDate={setSelectedDate}
-          onToggleCancelled={() =>
-            setShowCancelled((current) => !current)
-          }
-        />
-
-        <section className="rounded-lg border border-[#E8D8DB] bg-[#FDFAF8] p-6">
-          <h2 className="font-display text-xl font-semibold capitalize text-[#2C1A1D]">
-            Eventos del {formatSelectedDate(selectedDate)}
-          </h2>
-
-          {selectedEvents.length === 0 ? (
-            <p className="mt-4 text-sm text-[#7A5055]">
-              No hay eventos agendados para la fecha seleccionada.
-            </p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {selectedEvents.map((event) => {
-                const isPending =
-                  event.sync_status === "PENDING";
-
-                return (
-                  <article
-                    key={event.event_id}
-                    className="flex flex-wrap items-center gap-4 rounded-md bg-[#F5EBE8] p-4"
-                  >
-                    <div className="min-w-[260px] flex-1">
-                      <p className="text-sm font-medium text-[#2C1A1D]">
-                        {event.folio} · {event.client_name}
-                      </p>
-
-                      <p className="mt-1 text-[13px] text-[#5A3A3E]">
-                        {formatTime(event.start_datetime)}
-                        {"–"}
-                        {formatTime(event.end_datetime)}
-                        {" · "}
-                        {event.location}
-                        {" · "}
-                        {event.guest_count} Invitados
-                      </p>
-
-                      <p className="mt-1 text-xs text-[#7A5055]">
-                        Responsable:{" "}
-                        {event.logistics_responsible.full_name}
-                      </p>
-                    </div>
-
-                    <div className="w-[220px] space-y-2">
-                      <div>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            event.status === "CANCELLED"
-                              ? "bg-[#FDECEC] text-[#C0392B]"
-                              : "bg-[#E8F5E9] text-[#2E7D32]"
-                          }`}
-                        >
-                          {getStatusLabel(event.status)}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            isPending
-                              ? "bg-[#FFF3E0] text-[#E65100]"
-                              : "bg-[#E8F5E9] text-[#2E7D32]"
-                          }`}
-                        >
-                          {isPending
-                            ? "Pendiente de sincronización"
-                            : "Sincronizado"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex w-[230px] flex-col items-start gap-2">
-                      {isPending && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleRetrySync(event.event_id)
-                          }
-                          className="rounded bg-[#6B2737] px-3 py-2 text-[13px] font-medium text-[#FDF6F0]"
-                        >
-                          Reintentar sincronización
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          router.push(
-                            `/logistics?event=${event.request_numeric_id}`,
-                          )
-                        }
-                        className="text-[13px] font-medium text-[#6B2737]"
-                      >
-                        Ver ficha
-                      </button>
-
-                      {event.status === "CONFIRMED" && (
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleEdit(event)
-                            }
-                            className="text-[13px] font-medium text-[#6B2737]"
-                          >
-                            Editar
-                          </button>
-
-                          <span className="text-[#9A7075]">
-                            |
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCancel(event)
-                            }
-                            className="text-[13px] font-medium text-[#7A5055]"
-                          >
-                            Cancelar
-                          </button>
-
-                          {eventToEdit && (
-                            <EditCalendarEventModal
-                                event={eventToEdit}
-                                onClose={() => setEventToEdit(null)}
-                                onSave={handleSaveEdit}
-                            />
-                            )}
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+        <h1 className="font-display text-3xl text-[#2C1A1D]">Calendario de Eventos</h1>
+        <p>Horario de Mérida. {user?.role === "ADMIN" ? "Eventos de todos los responsables." : "Eventos a tu cargo."}</p>
+        <button disabled={loading} className="self-start underline disabled:opacity-50" onClick={() => {
+          setLoading(true); setError(""); setRefresh((v) => v + 1);
+        }}>{loading ? "Cargando eventos…" : "Actualizar calendario"}</button>
+        {notice && <p role="status">{notice}</p>}
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+        <MonthCalendar currentMonth={currentMonth} selectedDate={selectedDate} events={events}
+          showCancelled={showCancelled} onPreviousMonth={() => changeMonth(-1)} onNextMonth={() => changeMonth(1)}
+          onSelectDate={setSelectedDate} onToggleCancelled={() => setShowCancelled((v) => !v)} />
+        <section className="space-y-4 rounded border border-[#E8D8DB] bg-[#FDFAF8] p-6">
+          <h2 className="font-display text-xl">Eventos del {new Intl.DateTimeFormat("es-MX", {dateStyle: "long"}).format(new Date(`${selectedDate}T12:00:00`))}</h2>
+          {!loading && !error && !selected.length && <p>No hay eventos agendados para esta fecha.</p>}
+          {!loading && !error && selected.map((event) => (
+            <article key={event.event_id} className="space-y-2 rounded bg-[#F5EBE8] p-4">
+              <h3 className="font-semibold">{event.title}</h3>
+              <p>{event.start_datetime.replace("T", " ")} — {event.end_datetime.replace("T", " ")}</p>
+              <p>{event.location}</p>
+              <p>Responsable: {event.logistics_responsible?.full_name ?? "Sin responsable"}</p>
+              <p>{{CONFIRMED: "Confirmado", COMPLETED: "Finalizado", CANCELLED: "Cancelado"}[event.status]}</p>
+              <p>{event.sync_status === "SYNCED" ? "Sincronizado con Google Calendar" : "Guardado en calendario interno. Pendiente de sincronización con Google Calendar."}</p>
+              {event.sync_status === "PENDING" && <button className="underline disabled:opacity-50" disabled={pending} onClick={() => void retrySync(event.event_id)}>{pending ? "Procesando…" : "Reintentar sincronización"}</button>}
+              {event.status === "CONFIRMED" && <div className="flex gap-4">
+                {user?.role === "LOGISTICS" && Number(user.id_user) === event.logistics_responsible?.user_id && new Date(`${event.start_datetime}-06:00`).getTime() > now &&
+                  <button className="underline" onClick={() => { setNotice(""); setEditing(event); }}>Editar evento</button>}
+                {(user?.role === "ADMIN" || Number(user?.id_user) === event.logistics_responsible?.user_id) && new Date(`${event.end_datetime}-06:00`).getTime() > now &&
+                  <button className="underline" onClick={() => { setNotice(""); setActionError(""); setCancelling(event); }}>Cancelar evento</button>}
+              </div>}
+              {event.status !== "CANCELLED" && <Link className="underline" href={`/logistics/propuesta/${event.request_numeric_id}`}>Ver propuesta</Link>}
+            </article>
+          ))}
         </section>
       </section>
+      {editing && <EditCalendarEventModal key={editing.event_id} event={editing} onClose={() => setEditing(null)} onSave={async (id, values) => {
+        await editCalendarEvent(id, values);
+        setEditing(null); setSelectedDate(values.start_datetime.slice(0, 10));
+        setCurrentMonth(new Date(`${values.start_datetime.slice(0, 10)}T12:00:00`));
+        setNotice("Cambios guardados en el calendario interno."); reload();
+      }} />}
+      {cancelling && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <section role="dialog" aria-modal="true" aria-label="Cancelar evento" className="max-w-lg space-y-4 rounded bg-[#FDFAF8] p-6">
+          <h2 className="font-display text-2xl">Cancelar {cancelling.folio}</h2>
+          <p>¿Está seguro de que desea cancelar este evento? Esta acción liberará los recursos asignados.</p>
+          <p>El evento permanecerá en el historial como cancelado.</p>
+          {actionError && <p role="alert" className="text-red-700">{actionError}</p>}
+          <div className="flex gap-4">
+            <button disabled={pending} onClick={() => setCancelling(null)}>Volver</button>
+            <button disabled={pending} className="rounded bg-[#6B2737] px-4 py-2 text-white disabled:opacity-50" onClick={confirmCancellation}>{pending ? "Cancelando…" : "Confirmar cancelación"}</button>
+          </div>
+        </section>
+      </div>}
     </main>
   );
 }

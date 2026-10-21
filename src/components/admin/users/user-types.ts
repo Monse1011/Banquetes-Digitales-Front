@@ -9,10 +9,10 @@ export interface AdminUser {
   role: UserRole;
   status: UserStatus;
   last_access: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 
-  // Solo para representar al usuario de la sesión mientras estamos en mock.
+  // Identifica al usuario de la sesión actual.
   is_current_user?: boolean;
 }
 
