@@ -8,6 +8,7 @@ type AdminRequestsContentProps = {
   onApprove: (requestId: number) => void;
   approvingIds: number[];
   approvalErrors: Record<number, string>;
+  onRetry: () => void;
 };
 
 export function AdminRequestsContent({
@@ -17,6 +18,7 @@ export function AdminRequestsContent({
   onApprove,
   approvingIds,
   approvalErrors,
+  onRetry,
 }: AdminRequestsContentProps) {
   if (isLoading) {
     return <p className="text-sm text-[#7A5055]">Cargando solicitudes...</p>;
@@ -25,7 +27,10 @@ export function AdminRequestsContent({
   if (error) {
     return (
       <div className="rounded-sm border border-[#E6B8B8] bg-[#FFF4F2] px-4 py-3">
-        <p className="text-sm text-[#C0392B]">{error}</p>
+        <p role="alert" className="text-sm text-[#C0392B]">{error}</p>
+        <button type="button" onClick={onRetry} className="mt-2 text-sm underline">
+          Reintentar carga
+        </button>
       </div>
     );
   }

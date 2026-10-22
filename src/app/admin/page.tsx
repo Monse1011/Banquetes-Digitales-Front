@@ -8,6 +8,7 @@ import {
   type AdminRequest,
 } from "@/lib/api/admin";
 import { AdminRequestsContent } from "@/components/admin/admin-requests-content";
+import { AdminRequestsPagination } from "@/components/admin/admin-requests-pagination";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function AdminPage() {
@@ -17,6 +18,10 @@ export default function AdminPage() {
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [refresh, setRefresh] = useState(0);
   const approving = useRef(new Set<number>());
   const [approvingIds, setApprovingIds] = useState<number[]>([]);
   const [approvalErrors, setApprovalErrors] = useState<Record<number, string>>(
@@ -60,14 +65,31 @@ export default function AdminPage() {
       return;
     }
 
+    const controller = new AbortController();
     async function loadRequests() {
+      let redirectingToLastPage = false;
       try {
+        setIsLoading(true);
         setError("");
 
-        const response = await getAdminRequests();
+        const response = await getAdminRequests({
+          page,
+          perPage,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        const total = response.metadata.pagination.total_records;
+        setTotalRecords(total);
+        const lastPage = Math.max(1, Math.ceil(total / perPage));
+        if (page > lastPage) {
+          redirectingToLastPage = true;
+          setPage(lastPage);
+          return;
+        }
 
         setRequests(response.data);
       } catch (error) {
+        if (controller.signal.aborted) return;
         const typedError = error as Error & { status?: number };
 
         if (typedError.status === 403) {
@@ -78,12 +100,22 @@ export default function AdminPage() {
           );
         }
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted && !redirectingToLastPage) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadRequests();
-  }, [user?.role, router]);
+    return () => controller.abort();
+  }, [user?.role, router, page, perPage, refresh]);
+
+  const controlsDisabled = isLoading || approvingIds.length > 0;
+  function reloadRequests() {
+    if (controlsDisabled) return;
+    setIsLoading(true);
+    setRefresh((value) => value + 1);
+  }
 
   return (
     <main className="p-10">
@@ -119,6 +151,14 @@ export default function AdminPage() {
             <p className="mt-1 text-sm text-[#7A5055]">
               Solicitudes recibidas de clientes.
             </p>
+            <button
+              type="button"
+              onClick={reloadRequests}
+              disabled={controlsDisabled}
+              className="mt-3 text-sm text-[#6B2737] underline disabled:opacity-40"
+            >
+              Actualizar solicitudes
+            </button>
           </div>
 
           <AdminRequestsContent
@@ -128,6 +168,26 @@ export default function AdminPage() {
             onApprove={handleApprove}
             approvingIds={approvingIds}
             approvalErrors={approvalErrors}
+            onRetry={reloadRequests}
+          />
+          <AdminRequestsPagination
+            page={page}
+            perPage={perPage}
+            totalRecords={totalRecords}
+            visibleRecords={requests.length}
+            disabled={controlsDisabled}
+            showRange={!isLoading && !error}
+            onPageChange={(nextPage) => {
+              if (controlsDisabled || nextPage === page) return;
+              setIsLoading(true);
+              setPage(nextPage);
+            }}
+            onPerPageChange={(size) => {
+              if (controlsDisabled || size === perPage) return;
+              setIsLoading(true);
+              setPerPage(size);
+              setPage(1);
+            }}
           />
         </section>
       </section>
