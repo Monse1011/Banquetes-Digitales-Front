@@ -5,6 +5,10 @@ export type AgreementResource = {
   name: string;
   type: ResourceKind;
   quantity: number;
+  requested_quantity?: number | null;
+  available_quantity?: number | null;
+  sufficiency?: string | null;
+  observation?: string | null;
   unit_cost: number | null;
 };
 export type Agreement = {
@@ -17,6 +21,7 @@ export type Agreement = {
   start_datetime: string;
   end_datetime: string;
   observations: string | null;
+  confirmation_observations?: string | null;
   can_register_agreements: boolean;
   assigned_resources: AgreementResource[];
 };
@@ -51,6 +56,7 @@ export function saveAgreements(
   id: number,
   values: AgreementValues,
   resources: AgreementResource[],
+  agreementId?: number | null,
 ) {
   return apiRequest<{ data: { derived_information_id: number } }>(
     `/api/logistics/requests/${id}/derived-information`,
@@ -58,6 +64,7 @@ export function saveAgreements(
       method: "POST",
       body: {
         data: {
+          derived_information_id: agreementId,
           location: values.location.trim(),
           start_datetime: new Date(`${values.start}:00-06:00`).toISOString(),
           end_datetime: new Date(`${values.end}:00-06:00`).toISOString(),
@@ -69,6 +76,13 @@ export function saveAgreements(
         },
       },
     },
+  );
+}
+export function isAgreementRevisionConflict(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 409 &&
+    error.details.code === "AGREEMENTS_REVISION_CHANGED"
   );
 }
 export function agreementError(error: unknown): string {

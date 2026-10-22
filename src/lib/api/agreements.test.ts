@@ -4,6 +4,7 @@ import {
   getAgreements,
   meridaInput,
   saveAgreements,
+  isAgreementRevisionConflict,
 } from "./agreements";
 import { ApiError } from "./http";
 afterEach(() => vi.unstubAllGlobals());
@@ -53,9 +54,11 @@ describe("agreements HTTP contract", () => {
           unit_cost: null,
         },
       ],
+      6,
     );
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       data: {
+        derived_information_id: 6,
         location: "Salon",
         start_datetime: "2035-06-02T00:00:00.000Z",
         end_datetime: "2035-06-02T07:00:00.000Z",
@@ -113,6 +116,40 @@ describe("agreements HTTP contract", () => {
       ),
     ).rejects.toMatchObject({ status: 403 });
   });
+});
+
+it("recognizes the stale revision response without treating every conflict as a reload", async () => {
+  const payload = {
+    code: "AGREEMENTS_REVISION_CHANGED",
+    message: "Actualiza los acuerdos.",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(Response.json(payload, { status: 409 })),
+  );
+  try {
+    await saveAgreements(
+      3,
+      {
+        location: "Salon",
+        start: "2035-06-01T18:00",
+        end: "2035-06-01T21:00",
+        observations: "",
+        quantities: {},
+      },
+      [],
+      null,
+    );
+    throw new Error("Expected conflict");
+  } catch (error) {
+    expect(isAgreementRevisionConflict(error)).toBe(true);
+    expect(agreementError(error)).toBe(payload.message);
+  }
+  expect(
+    isAgreementRevisionConflict(
+      new ApiError("Disponibilidad insuficiente", 409),
+    ),
+  ).toBe(false);
 });
 
 it("formats calendar conflicts with resource names, folios and actual datetime fields", () => {
