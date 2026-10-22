@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { getClientServices, type ClientService } from "@/lib/api/client";
 import { RequestSentConfirmation } from "./request-sent-confirmation";
 import { validateReservationForm } from "./reservation-form-validation";
@@ -16,6 +16,8 @@ export type ReservationFormState = {
   phone: string;
   event_date: string;
   event_time: string;
+  event_end_date: string;
+  event_end_time: string;
   guest_count: string;
   event_address: string;
   services_ids: number[];
@@ -27,6 +29,8 @@ const initialForm: ReservationFormState = {
   phone: "",
   event_date: "",
   event_time: "",
+  event_end_date: "",
+  event_end_time: "",
   guest_count: "",
   event_address: "",
   services_ids: [],
@@ -53,6 +57,7 @@ function todayAsInputValue() {
 }
 
 export function ReservationForm() {
+  const submissionLocked = useRef(false);
   const [form, setForm] = useState<ReservationFormState>(initialForm);
   const [services, setServices] = useState<ClientService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
@@ -112,13 +117,21 @@ export function ReservationForm() {
     }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    void submitReservationForm(event, form, isValid, isSubmitting, {
-      setTouched,
-      setSubmitError,
-      setIsSubmitting,
-      setSubmittedFolio,
-    });
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submissionLocked.current || submittedFolio) return;
+    submissionLocked.current = true;
+    try {
+      const result = await submitReservationForm(event, form, isValid, false, {
+        setTouched,
+        setSubmitError,
+        setIsSubmitting,
+        setSubmittedFolio,
+      });
+      if (!result.isValid) submissionLocked.current = false;
+    } catch {
+      submissionLocked.current = false;
+    }
   }
   if (submittedFolio) {
     return <RequestSentConfirmation folio={submittedFolio} />;
@@ -202,6 +215,12 @@ export function ReservationForm() {
                   !!errors.event_time && !!touched.event_time,
                 )}
               />
+            </FormField>
+            <FormField label="Fecha de finalización" required error={touched.event_end_date ? errors.event_end_date : undefined}>
+              <input aria-label="Fecha de finalización" type="date" min={form.event_date || todayAsInputValue()} value={form.event_end_date} onChange={(event) => updateField("event_end_date", event.target.value)} className={inputClass(!!errors.event_end_date && !!touched.event_end_date)} />
+            </FormField>
+            <FormField label="Hora de finalización" required error={touched.event_end_time ? errors.event_end_time : undefined}>
+              <input aria-label="Hora de finalización" type="time" value={form.event_end_time} onChange={(event) => updateField("event_end_time", event.target.value)} className={inputClass(!!errors.event_end_time && !!touched.event_end_time)} />
             </FormField>
           </div>
         </section>

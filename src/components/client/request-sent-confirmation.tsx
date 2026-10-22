@@ -9,7 +9,7 @@ export function RequestSentConfirmation({
 }: RequestSentConfirmationProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#F5EBE8] px-4">
-      <section className="w-full max-w-xl rounded-sm border border-[#E8D8DB] bg-[#FDFAF8] px-8 py-12 text-center shadow-sm">
+      <section role="status" className="w-full max-w-xl rounded-sm border border-[#E8D8DB] bg-[#FDFAF8] px-8 py-12 text-center shadow-sm">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#6B2737]">
           <svg
             width="28"

@@ -2,13 +2,9 @@
 
 import { FormEvent, useState } from "react";
 
-import {
-  changePassword,
-  type ChangePasswordResponse,
-} from "@/lib/api/auth";
+import { changePassword, type ChangePasswordResponse } from "@/lib/api/auth";
 
 type PasswordChangeFormProps = {
-  token: string;
   currentPassword: string;
   onSuccess: (response: ChangePasswordResponse) => void;
 };
@@ -93,7 +89,6 @@ function PasswordInput({
 }
 
 export function PasswordChangeForm({
-  token,
   currentPassword,
   onSuccess,
 }: PasswordChangeFormProps) {
@@ -106,7 +101,12 @@ export function PasswordChangeForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (isLoading) return;
     setError("");
+    if (!newPassword || newPassword === currentPassword) {
+      setError("La nueva contraseña debe ser distinta de la actual.");
+      return;
+    }
 
     if (newPassword !== confirmation) {
       setError("Las contraseñas no coinciden.");
@@ -116,11 +116,7 @@ export function PasswordChangeForm({
     setIsLoading(true);
 
     try {
-      const response = await changePassword(
-        token,
-        currentPassword,
-        newPassword,
-      );
+      const response = await changePassword(currentPassword, newPassword);
 
       setSuccess(true);
       onSuccess(response);

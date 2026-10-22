@@ -35,6 +35,16 @@ export function validateReservationForm(form: ReservationFormState) {
     errors.event_time = "Selecciona una hora";
   }
 
+  if (!form.event_end_date) errors.event_end_date = "Selecciona la fecha de finalización";
+  if (!form.event_end_time) errors.event_end_time = "Selecciona la hora de finalización";
+  if (form.event_date && form.event_time && form.event_end_date && form.event_end_time) {
+    const start = new Date(`${form.event_date}T${form.event_time}:00`);
+    const end = new Date(`${form.event_end_date}T${form.event_end_time}:00`);
+    if (!Number.isFinite(end.getTime()) || end <= start) {
+      errors.event_end_time = "La finalización debe ser posterior al inicio.";
+    }
+  }
+
   const guestCount = Number(form.guest_count);
 
   if (!form.guest_count) {

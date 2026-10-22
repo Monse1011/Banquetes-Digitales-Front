@@ -28,6 +28,8 @@ export async function submitReservationForm(
     phone: true,
     event_date: true,
     event_time: true,
+    event_end_date: true,
+    event_end_time: true,
     guest_count: true,
     event_address: true,
     services_ids: true,
@@ -47,13 +49,14 @@ export async function submitReservationForm(
       client_full_name: form.client_full_name.trim(),
       email: form.email.trim(),
       phone: form.phone,
-      event_date_time: eventDateTime,
+      event_date_time: new Date(eventDateTime).toISOString(),
+      event_end_time: new Date(`${form.event_end_date}T${form.event_end_time}:00`).toISOString(),
       guest_count: Number(form.guest_count),
       event_address: form.event_address.trim(),
       services_ids: form.services_ids,
     });
 
-    handlers.setSubmittedFolio(response.data.folio);
+    handlers.setSubmittedFolio(response.data[0].folio);
 
     return { isValid: true };
   } catch (error) {

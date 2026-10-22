@@ -8,6 +8,8 @@ const validForm: ReservationFormState = {
   phone: "9991234567",
   event_date: "2099-01-01",
   event_time: "20:00",
+  event_end_date: "2099-01-02",
+  event_end_time: "01:00",
   guest_count: "2",
   event_address: "Dirección de prueba",
   services_ids: [1],
@@ -63,4 +65,10 @@ describe("validateReservationForm", () => {
 
     expect(errors.guest_count).toBeUndefined();
   });
+});
+it("acepta un evento que termina al día siguiente", () => {
+  expect(validateReservationForm(validForm)).toEqual({});
+});
+it("rechaza un fin anterior al inicio", () => {
+  expect(validateReservationForm({ ...validForm, event_end_date: "2099-01-01", event_end_time: "19:00" }).event_end_time).toBeDefined();
 });
