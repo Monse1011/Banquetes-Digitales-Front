@@ -2,14 +2,16 @@ import type { OperativeRole } from "./operative-role-types";
 
 type Props = {
   roles: OperativeRole[];
+  busy?: boolean;
   onEdit?: (role: OperativeRole) => void;
-  onChangeStatus?: (role: OperativeRole) => void;
+  onDeactivate?: (role: OperativeRole) => void;
 };
 
 export function OperativeRolesTable({
   roles,
+  busy = false,
   onEdit,
-  onChangeStatus,
+  onDeactivate,
 }: Props) {
   return (
     <div className="overflow-x-auto rounded border border-[#E8D8DB] bg-[#FDFAF8] p-6">
@@ -28,7 +30,7 @@ export function OperativeRolesTable({
               RH Activos asignados
             </th>
 
-            {(onEdit || onChangeStatus) && <th className="w-[180px] pb-3 text-right text-xs font-semibold uppercase text-[#7A5055]">
+            {(onEdit || onDeactivate) && <th className="w-[180px] pb-3 text-right text-xs font-semibold uppercase text-[#7A5055]">
               Acciones
             </th>}
           </tr>
@@ -60,22 +62,24 @@ export function OperativeRolesTable({
                 {role.active_human_resources_count}
               </td>
 
-              {(onEdit || onChangeStatus) && <td className="py-4">
+              {(onEdit || onDeactivate) && <td className="py-4">
                 <div className="flex justify-end gap-2">
                   {onEdit && <button
                     type="button"
+                    disabled={busy || !role.is_active}
                     onClick={() => onEdit(role)}
-                    className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737]"
+                    className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737] disabled:opacity-50"
                   >
                     Editar
                   </button>}
 
-                  {onChangeStatus && <button
+                  {onDeactivate && role.is_active && <button
                     type="button"
-                    onClick={() => onChangeStatus(role)}
-                    className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737]"
+                    disabled={busy || !role.is_active}
+                    onClick={() => onDeactivate(role)}
+                    className="rounded border border-[#E8D8DB] px-3 py-1.5 text-xs font-medium text-[#6B2737] disabled:opacity-50"
                   >
-                    {role.is_active ? "Desactivar" : "Reactivar"}
+                    Desactivar
                   </button>}
                 </div>
               </td>}

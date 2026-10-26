@@ -8,3 +8,5 @@ export interface OperativeRole {
 export interface OperativeRoleFormValues {
   name: string;
 }
+
+export const OPERATIVE_ROLE_NAME_MAX_LENGTH = 100;
