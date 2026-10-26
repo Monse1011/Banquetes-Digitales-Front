@@ -31,7 +31,7 @@ export function ReservationFormFooter({
               : "cursor-not-allowed bg-[#D4BFC2] text-[#9A7075]",
           ].join(" ")}
         >
-          Enviar Solicitud
+          {isSubmitting ? "Enviando…" : "Enviar Solicitud"}
         </button>
       </div>
     </div>
