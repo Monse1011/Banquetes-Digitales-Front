@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/layout";
 import { useAuth } from "@/lib/auth/auth-context";
 import { can, navFor } from "@/lib/auth/permissions";
 import { AdminSummary } from "@/components/backstage/admin-summary";
+import { LogisticsSummary } from "@/components/backstage/logistics-summary";
 
 const DESCRIPTIONS: Record<string, string> = {
   "/panel/solicitudes": "Revisa, aprueba y asigna responsable a las solicitudes de los clientes.",
@@ -25,6 +26,7 @@ export default function PanelHome() {
     <>
       <PageHeader title={`Hola, ${firstName}`} description="¿Qué quieres hacer hoy?" />
       {can(user?.role, "requests.manage") ? <AdminSummary /> : null}
+      {can(user?.role, "logistics.operate") ? <LogisticsSummary /> : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <Link

@@ -32,8 +32,11 @@ En `Banquetes-Digitales-Back` (detalles en `database/dev-local/README.md`):
 docker run -d --name banquetes-db -e POSTGRES_USER=banquetes -e POSTGRES_PASSWORD=banquetes_dev \
   -e POSTGRES_DB=banquetes_db -e TZ=America/Merida -p 127.0.0.1:5434:5432 postgres:18
 bash database/dev-local/rebuild.sh banquetes_db
-npm install && npm run dev
+npm install && npm start
 ```
+
+> En Windows usa `npm start` en el back: `npm run dev` (`node --watch`) se reinicia cada vez que
+> se genera un PDF en `storage/proposals` y corta las peticiones en curso.
 
 `.env` mínimo del back:
 
@@ -84,7 +87,8 @@ Un solo panel para el personal; el menú y las acciones salen de `src/lib/auth/p
 | `/panel/usuarios` | ADMIN | Alta, edición, activar/desactivar y reenvío de credenciales |
 | `/panel/recursos` | ADMIN | Catálogo global y CRUD de recursos humanos, materiales y logísticos |
 | `/panel/roles-operativos` | ADMIN | CRUD de roles operativos |
-| `/panel/calendario` | ADMIN · LOGISTICS | Calendario mensual (global para admin, propio para logística) |
+| `/panel/mis-solicitudes` · `/[id]` | LOGISTICS | Activas e historial; detalle con confirmación de recursos, acuerdos, propuesta (generar, descargar, enviar) y agendado |
+| `/panel/calendario` | ADMIN · LOGISTICS | Calendario mensual; logística además edita, cancela y reintenta la sincronización de sus eventos |
 
 ## Scripts
 
