@@ -9,6 +9,8 @@
   --color-wine: #7a2e3a;
   --color-wine-dark: #5e2029;
   --color-gold: #b8925a;
+  /* Texto dorado sobre fondos claros (contraste AA). */
+  --color-gold-dark: #7d5f2c;
   --color-ok: #2f7a4d;
   --color-warn: #a86b12;
   --color-danger: #b42e2e;

@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/feedback";
 import { TextField } from "@/components/ui/form";
 import { getSession, login } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/http";
+import { DocumentTitle } from "@/components/ui/layout";
 import { useAuth } from "@/lib/auth/auth-context";
 
 /** Solo se permite redirigir a rutas internas del panel. */
@@ -53,6 +54,7 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-8">
+      <DocumentTitle title="Iniciar sesión" />
       <div>
         <h1 className="font-display text-3xl font-semibold">Iniciar sesión</h1>
         <p className="mt-2 text-sm text-muted">Acceso exclusivo para el personal de Banquetes Elegancia.</p>

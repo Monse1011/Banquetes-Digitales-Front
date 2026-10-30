@@ -7,8 +7,8 @@ import "./globals.css";
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"] });
 
+// Sin `title`: cada página define el suyo con <DocumentTitle> y dos <title> competirían.
 export const metadata: Metadata = {
-  title: { default: "Banquetes Elegancia", template: "%s · Banquetes Elegancia" },
   description: "Banquetes, mobiliario y coordinación integral de eventos en Mérida, Yucatán.",
 };
 

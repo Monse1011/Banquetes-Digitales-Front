@@ -11,6 +11,7 @@ import { ApiError } from "@/lib/api/http";
 import { formatDateTime, formatLongDate } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { clientStatusLabel, normalizeStatus } from "@/lib/status";
+import { DocumentTitle } from "@/components/ui/layout";
 import { FOLIO_REGEX, normalizeFolio } from "@/lib/validation";
 
 const NEXT_STEP: Record<string, string> = {
@@ -131,17 +132,21 @@ export default function TrackingPage() {
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">{children}</div>;
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+      <DocumentTitle title="Seguimiento de solicitud" />
+      {children}
+    </div>
+  );
 }
 
+// dt/dd deben ser hijos directos del div de cada par; el ícono va como fondo del par.
 function Info({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <Icon name={icon} className="mt-0.5 h-5 w-5 text-gold" />
-      <div>
-        <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
-        <dd className="mt-0.5 first-letter:uppercase">{value}</dd>
-      </div>
+    <div className="relative pl-8">
+      <Icon name={icon} className="absolute left-0 top-0.5 h-5 w-5 text-gold" />
+      <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+      <dd className="mt-0.5 first-letter:uppercase">{value}</dd>
     </div>
   );
 }

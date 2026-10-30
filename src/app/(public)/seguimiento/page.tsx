@@ -2,12 +2,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { FolioLookup } from "@/components/public/folio-lookup";
+import { DocumentTitle } from "@/components/ui/layout";
 import { Icon } from "@/components/ui/icon";
 
 export default function TrackingSearchPage() {
   const initial = useSearchParams().get("folio") ?? "";
   return (
     <div className="mx-auto max-w-lg px-4 py-20 sm:px-6">
+      <DocumentTitle title="Consulta tu solicitud" />
       <div className="text-center">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-wine/10 text-wine">
           <Icon name="search" className="h-7 w-7" />

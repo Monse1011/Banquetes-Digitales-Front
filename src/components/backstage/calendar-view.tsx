@@ -7,7 +7,7 @@ import { Badge, EmptyState, LoadingBlock, StatusBadge } from "@/components/ui/fe
 import { Icon } from "@/components/ui/icon";
 import { Card } from "@/components/ui/layout";
 import { isSynced, listCalendarEvents, type CalendarEvent, type CalendarScope } from "@/lib/api/calendar";
-import { formatLongDate, formatTime, todayInMerida } from "@/lib/format";
+import { formatLongDate, formatTime, monthGrid, todayInMerida } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { normalizeStatus } from "@/lib/status";
 
@@ -16,17 +16,6 @@ const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const ALL_EVENTS = 500;
 
 const dayOf = (event: CalendarEvent) => event.start_datetime.slice(0, 10);
-
-function monthGrid(year: number, month: number): string[] {
-  const first = new Date(Date.UTC(year, month, 1));
-  const offset = (first.getUTCDay() + 6) % 7; // lunes = 0
-  const start = new Date(Date.UTC(year, month, 1 - offset));
-  return Array.from({ length: 42 }, (_, i) => {
-    const d = new Date(start);
-    d.setUTCDate(start.getUTCDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-}
 
 export function SyncBadge({ status }: { status: string }) {
   return isSynced(status) ? <Badge tone="ok">Sincronizado</Badge> : <Badge tone="warn">Pendiente de sincronizar</Badge>;

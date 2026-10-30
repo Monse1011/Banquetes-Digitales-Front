@@ -2,12 +2,13 @@ import { FAQ, GALLERY, STATS, STEPS, TESTIMONIALS, BUSINESS } from "@/components
 import { FolioLookup } from "@/components/public/folio-lookup";
 import { ServicesGrid } from "@/components/public/services-grid";
 import { ButtonLink } from "@/components/ui/button";
+import { DocumentTitle } from "@/components/ui/layout";
 import { Icon } from "@/components/ui/icon";
 
 function SectionTitle({ eyebrow, title, text }: { eyebrow: string; title: string; text?: string }) {
   return (
     <div className="mx-auto mb-10 max-w-2xl text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{eyebrow}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold-dark">{eyebrow}</p>
       <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{title}</h2>
       {text ? <p className="mt-3 text-muted">{text}</p> : null}
     </div>
@@ -17,6 +18,7 @@ function SectionTitle({ eyebrow, title, text }: { eyebrow: string; title: string
 export default function LandingPage() {
   return (
     <>
+      <DocumentTitle title="Banquetes y eventos en Mérida" />
       {/* Hero */}
       <section className="relative overflow-hidden bg-ink text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(184,146,90,0.35),transparent_45%),radial-gradient(circle_at_85%_80%,rgba(122,46,58,0.65),transparent_50%)]" />
@@ -79,7 +81,7 @@ export default function LandingPage() {
           <ol className="grid gap-6 md:grid-cols-4">
             {STEPS.map((step, index) => (
               <li key={step.title} className="relative rounded-2xl border border-line p-6">
-                <span className="font-display text-4xl text-gold/60">{String(index + 1).padStart(2, "0")}</span>
+                <span className="font-display text-4xl text-gold-dark" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 <h3 className="mt-3 font-semibold">{step.title}</h3>
                 <p className="mt-2 text-sm text-muted">{step.text}</p>
               </li>

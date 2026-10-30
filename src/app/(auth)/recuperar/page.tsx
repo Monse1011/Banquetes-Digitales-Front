@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/feedback";
 import { TextField } from "@/components/ui/form";
 import { forgotPassword } from "@/lib/api/auth";
 import { errorMessage } from "@/lib/api/http";
+import { DocumentTitle } from "@/components/ui/layout";
 import { EMAIL_REGEX } from "@/lib/validation";
 
 export default function ForgotPasswordPage() {
@@ -34,6 +35,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="space-y-8">
+      <DocumentTitle title="Recuperar contraseña" />
       <div>
         <h1 className="font-display text-3xl font-semibold">Recuperar contraseña</h1>
         <p className="mt-2 text-sm text-muted">Te enviaremos un enlace para restablecerla.</p>

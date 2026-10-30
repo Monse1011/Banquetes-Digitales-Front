@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <p className="font-display text-4xl leading-tight">Cada detalle de tu evento, coordinado en un solo lugar.</p>
           <p className="text-white/70">Portal del personal: solicitudes, recursos, propuestas y calendario.</p>
         </div>
-        <p className="relative text-sm text-white/50">© {new Date().getFullYear()} Banquetes Elegancia · Mérida, Yucatán</p>
+        <p className="relative text-sm text-white/60">© {new Date().getFullYear()} Banquetes Elegancia · Mérida, Yucatán</p>
       </aside>
       <main className="flex flex-col px-4 py-8 sm:px-8">
         <div className="flex items-center justify-between lg:justify-end">

@@ -25,6 +25,7 @@ import { ApiError, errorMessage } from "@/lib/api/http";
 import { formatDate, formatLongDate, formatMoney, formatTime } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { clientStatusLabel } from "@/lib/status";
+import { DocumentTitle } from "@/components/ui/layout";
 import { FOLIO_REGEX, normalizeFolio } from "@/lib/validation";
 
 const MAX_OBSERVATIONS = 500;
@@ -411,5 +412,10 @@ function Item({ label, value }: { label: string; value: string }) {
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">{children}</div>;
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <DocumentTitle title="Tu propuesta" />
+      {children}
+    </div>
+  );
 }

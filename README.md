@@ -99,6 +99,17 @@ Un solo panel para el personal; el menú y las acciones salen de `src/lib/auth/p
 | `npm run lint` | ESLint |
 | `npm test` | Pruebas (Vitest) |
 
+## Calidad
+
+- **Accesibilidad:** sin hallazgos WCAG 2 A/AA de axe-core en todas las rutas; foco retenido en
+  modales, enlace «Saltar al contenido», títulos de pestaña por página y textos dorados con contraste AA
+  (`gold-dark` sobre fondos claros).
+- **Responsive:** sin desbordes horizontales a 390 px; las tablas pasan a tarjetas en móvil.
+- **Errores:** pantallas de error de React (`error.tsx`) para el sitio y el panel, 404 dentro del panel y
+  cierre de sesión automático ante un 401 (regresa a la página original tras volver a entrar).
+- **Pruebas:** `npm test` cubre la capa HTTP, todos los módulos de `lib/api`, estados, permisos,
+  fechas y validaciones.
+
 ## Estructura
 
 ```
@@ -107,5 +118,7 @@ src/
   components/ui/  kit de componentes
   components/public/  landing (contenido mock en content.ts), timeline, buscador de folio
   lib/api/        un módulo por área del contrato (+ http.ts)
+  components/backstage/  shell del panel, calendario, tablas compartidas
+  components/logistics/  pestañas del detalle de logística
   lib/            estados, permisos, fechas (hora de Mérida), validaciones
 ```

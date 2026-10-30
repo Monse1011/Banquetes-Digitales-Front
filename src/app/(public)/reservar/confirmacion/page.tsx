@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
+import { DocumentTitle } from "@/components/ui/layout";
 import { FOLIO_REGEX } from "@/lib/validation";
 
 export default function ConfirmationPage() {
@@ -25,6 +26,7 @@ export default function ConfirmationPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-16 text-center sm:px-6">
+      <DocumentTitle title="Solicitud recibida" />
       {valid ? (
         <>
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-ok">

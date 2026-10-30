@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Alert, LoadingBlock } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
+import { SkipLink } from "@/components/ui/skip-link";
 import { useAuth } from "@/lib/auth/auth-context";
 import { can, navFor, ROLE_LABELS, type Permission } from "@/lib/auth/permissions";
 
@@ -98,6 +99,7 @@ export function BackstageShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <SkipLink />
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 bg-ink lg:block">{sidebar}</aside>
       {menuOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setMenuOpen(false)}>
@@ -134,7 +136,7 @@ export function BackstageShell({ children }: { children: ReactNode }) {
             </span>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+        <main id="contenido" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 focus:outline-none sm:px-8 sm:py-8">{children}</main>
       </div>
     </div>
   );

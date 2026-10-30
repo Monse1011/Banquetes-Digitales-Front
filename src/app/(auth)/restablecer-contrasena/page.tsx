@@ -7,6 +7,7 @@ import { isNewPasswordValid, NewPasswordFields } from "@/components/auth/passwor
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import { resetPassword } from "@/lib/api/auth";
+import { DocumentTitle } from "@/components/ui/layout";
 import { errorMessage } from "@/lib/api/http";
 
 // Destino del enlace enviado por correo: RESET_PASSWORD_URL?token=... (configurado en el back).
@@ -36,6 +37,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="space-y-8">
+      <DocumentTitle title="Restablecer contraseña" />
       <div>
         <h1 className="font-display text-3xl font-semibold">Restablecer contraseña</h1>
         <p className="mt-2 text-sm text-muted">Define una nueva contraseña para tu cuenta.</p>

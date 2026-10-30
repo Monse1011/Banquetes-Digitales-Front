@@ -11,16 +11,15 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError, errorMessage } from "@/lib/api/http";
 import {
   assignProvisional,
+  defaultUsageWindow,
   cancelProvisional,
   confirmResources,
   listAvailability,
   releaseProvisional,
-  type AvailabilityRequestMeta,
   type AvailableResource,
   type ConfirmationResult,
 } from "@/lib/api/logistics";
 import type { ResourceType } from "@/lib/api/resources";
-import { addDays, toSqlDateTime } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 
 type Draft = Record<number, { quantity: string; observation: string }>;
@@ -30,12 +29,6 @@ const TYPES: { value: ResourceType; label: string }[] = [
   { value: "MATERIAL", label: "Material" },
   { value: "LOGISTIC", label: "Logística" },
 ];
-
-/** Ventana de uso por defecto = horario del evento (si termina antes de empezar, cruza medianoche). */
-function usageWindow(meta: AvailabilityRequestMeta) {
-  const endDate = meta.end_time <= meta.start_time ? addDays(meta.event_date, 1) : meta.event_date;
-  return { usage_start: toSqlDateTime(meta.event_date, meta.start_time), usage_end: toSqlDateTime(endDate, meta.end_time) };
-}
 
 export function ResourcesTab({ requestId, onChanged }: { requestId: number; onChanged: () => void }) {
   const toast = useToast();
@@ -65,7 +58,7 @@ export function ResourcesTab({ requestId, onChanged }: { requestId: number; onCh
     setBusy(true);
     setError("");
     try {
-      const usage = usageWindow(meta);
+      const usage = defaultUsageWindow(meta);
       await assignProvisional(
         requestId,
         pending.map(([id, value]) => ({

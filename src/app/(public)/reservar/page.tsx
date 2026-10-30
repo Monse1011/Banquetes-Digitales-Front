@@ -10,6 +10,7 @@ import { createReservation, getServices } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/http";
 import { addDays, todayInMerida } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
+import { DocumentTitle } from "@/components/ui/layout";
 import { toReservationPayload, validateReservation, type ReservationForm } from "@/lib/validation";
 
 const EMPTY: ReservationForm = {
@@ -89,7 +90,8 @@ export default function ReservationPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <header className="mb-8 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">Cotización sin costo</p>
+      <DocumentTitle title="Solicita tu evento" />
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold-dark">Cotización sin costo</p>
         <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Solicita tu evento</h1>
         <p className="mt-3 text-muted">
           Completa el formulario y recibirás un folio para dar seguimiento. Un coordinador te contactará para afinar los

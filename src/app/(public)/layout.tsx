@@ -4,12 +4,14 @@ import { Logo } from "@/components/brand/logo";
 import { BUSINESS } from "@/components/public/content";
 import { SiteHeader } from "@/components/public/site-header";
 import { LoadingBlock } from "@/components/ui/feedback";
+import { SkipLink } from "@/components/ui/skip-link";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
+      <SkipLink />
       <SiteHeader />
-      <main className="flex-1">
+      <main id="contenido" tabIndex={-1} className="flex-1 focus:outline-none">
         <Suspense fallback={<LoadingBlock />}>{children}</Suspense>
       </main>
       <footer className="bg-ink text-white/70">
@@ -38,7 +40,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </Link>
           </div>
         </div>
-        <p className="border-t border-white/10 py-4 text-center text-xs text-white/40">
+        <p className="border-t border-white/10 py-4 text-center text-xs text-white/60">
           © {new Date().getFullYear()} {BUSINESS.name}. Todos los derechos reservados.
         </p>
       </footer>

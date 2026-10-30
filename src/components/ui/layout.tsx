@@ -20,6 +20,11 @@ export function CardHeader({ title, description, actions }: { title: string; des
   );
 }
 
+/** Título de la pestaña del navegador (React 19 lo eleva al <head>). */
+export function DocumentTitle({ title }: { title: string }) {
+  return <title>{`${title} · Banquetes Elegancia`}</title>;
+}
+
 export function PageHeader({
   title,
   description,
@@ -33,6 +38,7 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-6 space-y-2">
+      <DocumentTitle title={title} />
       {back}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

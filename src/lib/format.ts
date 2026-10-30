@@ -92,6 +92,18 @@ export function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** 42 días (6 semanas, lunes a domingo) que cubren el mes indicado (`month` base 0). */
+export function monthGrid(year: number, month: number): string[] {
+  const first = new Date(Date.UTC(year, month, 1));
+  const offset = (first.getUTCDay() + 6) % 7; // lunes = 0
+  const start = new Date(Date.UTC(year, month, 1 - offset));
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
 const money = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 
 export function formatMoney(value: number | string | null | undefined, currency = "MXN"): string {

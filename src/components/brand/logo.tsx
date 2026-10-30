@@ -12,7 +12,7 @@ export function Logo({ href = "/", light = false }: { href?: string; light?: boo
       </span>
       <span className={`font-display text-lg leading-tight ${light ? "text-white" : "text-ink"}`}>
         Banquetes
-        <span className="block text-xs uppercase tracking-[0.25em] text-gold">Elegancia</span>
+        <span className={`block text-xs uppercase tracking-[0.25em] ${light ? "text-gold" : "text-gold-dark"}`}>Elegancia</span>
       </span>
     </Link>
   );

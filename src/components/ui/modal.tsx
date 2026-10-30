@@ -6,6 +6,8 @@ import { Icon } from "./icon";
 import { Alert } from "./feedback";
 import { errorMessage } from "@/lib/api/http";
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Modal({
   open,
   onClose,
@@ -30,7 +32,23 @@ export function Modal({
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Mantiene el foco dentro del diálogo al tabular.
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusables = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
