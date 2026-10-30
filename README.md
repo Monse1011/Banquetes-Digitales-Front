@@ -3,7 +3,7 @@
 Front de Banquetes Elegancia (Next.js 16 + React 19 + TypeScript + Tailwind 4). Consume la API
 descrita en `Banquetes-Digitales-Back/API_CONTRACT.md`.
 
-- **Sitio público** (`/`): landing, solicitud de reservación y seguimiento por folio (Fase 1, pendiente).
+- **Sitio público** (`/`): landing, solicitud de reservación y seguimiento por folio.
 - **Backstage** (`/panel`): un solo panel para el personal; el menú y las acciones dependen del
   rol (`ADMIN` o `LOGISTICS`).
 
@@ -62,6 +62,18 @@ prueba, por ejemplo Mailpit: `docker run -d -p 1025:1025 -p 8025:8025 axllent/ma
 | --- | --- | --- |
 | `001` | `Admin123!` | ADMIN (pide cambiarla en el primer acceso) |
 
+## Sitio público
+
+| Ruta | Qué hace |
+| --- | --- |
+| `/` | Landing (contenido de ejemplo en `src/components/public/content.ts`; los servicios vienen del back) |
+| `/reservar` | Solicitud de reservación → folio |
+| `/seguimiento` · `/seguimiento/[folio]` | Estado de la solicitud |
+| `/seguimiento/[folio]/propuesta` | Detalle de la propuesta; aceptar, solicitar ajustes o rechazar; PDF |
+
+> Abrir `/seguimiento/[folio]/propuesta` por primera vez pasa la solicitud de `PROPOSAL_GENERATED`
+> a `IN_REVIEW` (contrato §3.4), por eso el detalle solo se consulta al entrar a esa página.
+
 ## Scripts
 
 | Comando | Qué hace |
@@ -75,8 +87,9 @@ prueba, por ejemplo Mailpit: `docker run -d -p 1025:1025 -p 8025:8025 axllent/ma
 
 ```
 src/
-  app/            rutas: (auth) acceso, panel/ backstage
+  app/            rutas: (public) sitio, (auth) acceso, panel/ backstage
   components/ui/  kit de componentes
+  components/public/  landing (contenido mock en content.ts), timeline, buscador de folio
   lib/api/        un módulo por área del contrato (+ http.ts)
   lib/            estados, permisos, fechas (hora de Mérida), validaciones
 ```
