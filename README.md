@@ -74,6 +74,18 @@ prueba, por ejemplo Mailpit: `docker run -d -p 1025:1025 -p 8025:8025 axllent/ma
 > Abrir `/seguimiento/[folio]/propuesta` por primera vez pasa la solicitud de `PROPOSAL_GENERATED`
 > a `IN_REVIEW` (contrato §3.4), por eso el detalle solo se consulta al entrar a esa página.
 
+## Backstage (`/panel`)
+
+Un solo panel para el personal; el menú y las acciones salen de `src/lib/auth/permissions.ts`.
+
+| Ruta | Rol | Qué hace |
+| --- | --- | --- |
+| `/panel/solicitudes` · `/[id]` | ADMIN | Lista con filtros en la URL; detalle, aprobar, asignar/reasignar responsable, recursos en solo lectura |
+| `/panel/usuarios` | ADMIN | Alta, edición, activar/desactivar y reenvío de credenciales |
+| `/panel/recursos` | ADMIN | Catálogo global y CRUD de recursos humanos, materiales y logísticos |
+| `/panel/roles-operativos` | ADMIN | CRUD de roles operativos |
+| `/panel/calendario` | ADMIN · LOGISTICS | Calendario mensual (global para admin, propio para logística) |
+
 ## Scripts
 
 | Comando | Qué hace |
