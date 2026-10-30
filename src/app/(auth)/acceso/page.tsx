@@ -63,7 +63,8 @@ export default function LoginPage() {
       <form className="space-y-4" onSubmit={submit} noValidate>
         <TextField
           label="Número de empleado"
-          placeholder="EMP-0001"
+          placeholder="Ej. 001"
+          inputMode="numeric"
           autoComplete="username"
           value={employeeId}
           onChange={(event) => setEmployeeId(event.target.value)}

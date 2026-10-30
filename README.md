@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Banquetes Digitales · Front
 
-## Getting Started
+Front de Banquetes Elegancia (Next.js 16 + React 19 + TypeScript + Tailwind 4). Consume la API
+descrita en `Banquetes-Digitales-Back/API_CONTRACT.md`.
 
-First, run the development server:
+- **Sitio público** (`/`): landing, solicitud de reservación y seguimiento por folio (Fase 1, pendiente).
+- **Backstage** (`/panel`): un solo panel para el personal; el menú y las acciones dependen del
+  rol (`ADMIN` o `LOGISTICS`).
+
+## Requisitos
+
+- Node.js 20+ (probado con 24)
+- El back corriendo (por defecto en `http://localhost:3000`)
+
+## Ejecutar en local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # BACKEND_URL=http://localhost:3000
+npm install
+npm run dev                  # http://localhost:3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+El back no habilita CORS y la sesión viaja en la cookie HttpOnly `auth_token`, por eso el front
+reenvía `/api/*` al back con un rewrite de Next (`next.config.ts`): el navegador siempre habla
+con el mismo origen.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Levantar el back y la base de datos
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+En `Banquetes-Digitales-Back` (detalles en `database/dev-local/README.md`):
 
-## Learn More
+```bash
+docker run -d --name banquetes-db -e POSTGRES_USER=banquetes -e POSTGRES_PASSWORD=banquetes_dev \
+  -e POSTGRES_DB=banquetes_db -e TZ=America/Merida -p 127.0.0.1:5434:5432 postgres:18
+bash database/dev-local/rebuild.sh banquetes_db
+npm install && npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+`.env` mínimo del back:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+PORT=3000
+PGHOST=localhost
+PGPORT=5434
+PGUSER=banquetes
+PGPASSWORD=banquetes_dev
+PGDATABASE=banquetes_db
+JWT_SECRET=<cadena aleatoria>
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_USER=no-reply@banquetes.local
+SMTP_PASSWORD=dev
+RESET_PASSWORD_URL=http://localhost:3001/restablecer-contrasena
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Para los correos (recuperación de contraseña, credenciales, propuestas) sirve cualquier SMTP de
+prueba, por ejemplo Mailpit: `docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit`
+(bandeja en http://localhost:8025).
 
-## Deploy on Vercel
+### Usuario inicial
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Empleado | Contraseña | Rol |
+| --- | --- | --- |
+| `001` | `Admin123!` | ADMIN (pide cambiarla en el primer acceso) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Comando | Qué hace |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo en el puerto 3001 |
+| `npm run build` / `npm start` | Build de producción y servidor |
+| `npm run lint` | ESLint |
+| `npm test` | Pruebas (Vitest) |
+
+## Estructura
+
+```
+src/
+  app/            rutas: (auth) acceso, panel/ backstage
+  components/ui/  kit de componentes
+  lib/api/        un módulo por área del contrato (+ http.ts)
+  lib/            estados, permisos, fechas (hora de Mérida), validaciones
+```
