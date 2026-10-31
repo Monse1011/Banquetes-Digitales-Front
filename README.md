@@ -1,1 +1,124 @@
-# Banquetes-Digitales
+# Banquetes Digitales · Front
+
+Front de Banquetes Elegancia (Next.js 16 + React 19 + TypeScript + Tailwind 4). Consume la API
+descrita en `Banquetes-Digitales-Back/API_CONTRACT.md`.
+
+- **Sitio público** (`/`): landing, solicitud de reservación y seguimiento por folio.
+- **Backstage** (`/panel`): un solo panel para el personal; el menú y las acciones dependen del
+  rol (`ADMIN` o `LOGISTICS`).
+
+## Requisitos
+
+- Node.js 20+ (probado con 24)
+- El back corriendo (por defecto en `http://localhost:3000`)
+
+## Ejecutar en local
+
+```bash
+cp .env.example .env.local   # BACKEND_URL=http://localhost:3000
+npm install
+npm run dev                  # http://localhost:3001
+```
+
+El back no habilita CORS y la sesión viaja en la cookie HttpOnly `auth_token`, por eso el front
+reenvía `/api/*` al back con un rewrite de Next (`next.config.ts`): el navegador siempre habla
+con el mismo origen.
+
+### Levantar el back y la base de datos
+
+En `Banquetes-Digitales-Back` (detalles en `database/dev-local/README.md`):
+
+```bash
+docker run -d --name banquetes-db -e POSTGRES_USER=banquetes -e POSTGRES_PASSWORD=banquetes_dev \
+  -e POSTGRES_DB=banquetes_db -e TZ=America/Merida -p 127.0.0.1:5434:5432 postgres:18
+bash database/dev-local/rebuild.sh banquetes_db
+npm install && npm start
+```
+
+> En Windows usa `npm start` en el back: `npm run dev` (`node --watch`) se reinicia cada vez que
+> se genera un PDF en `storage/proposals` y corta las peticiones en curso.
+
+`.env` mínimo del back:
+
+```
+PORT=3000
+PGHOST=localhost
+PGPORT=5434
+PGUSER=banquetes
+PGPASSWORD=banquetes_dev
+PGDATABASE=banquetes_db
+JWT_SECRET=<cadena aleatoria>
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_USER=no-reply@banquetes.local
+SMTP_PASSWORD=dev
+RESET_PASSWORD_URL=http://localhost:3001/restablecer-contrasena
+```
+
+Para los correos (recuperación de contraseña, credenciales, propuestas) sirve cualquier SMTP de
+prueba, por ejemplo Mailpit: `docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit`
+(bandeja en http://localhost:8025).
+
+### Usuario inicial
+
+| Empleado | Contraseña | Rol |
+| --- | --- | --- |
+| `001` | `Admin123!` | ADMIN (pide cambiarla en el primer acceso) |
+
+## Sitio público
+
+| Ruta | Qué hace |
+| --- | --- |
+| `/` | Landing (contenido de ejemplo en `src/components/public/content.ts`; los servicios vienen del back) |
+| `/reservar` | Solicitud de reservación → folio |
+| `/seguimiento` · `/seguimiento/[folio]` | Estado de la solicitud |
+| `/seguimiento/[folio]/propuesta` | Detalle de la propuesta; aceptar, solicitar ajustes o rechazar; PDF |
+
+> Abrir `/seguimiento/[folio]/propuesta` por primera vez pasa la solicitud de `PROPOSAL_GENERATED`
+> a `IN_REVIEW` (contrato §3.4), por eso el detalle solo se consulta al entrar a esa página.
+
+## Backstage (`/panel`)
+
+Un solo panel para el personal; el menú y las acciones salen de `src/lib/auth/permissions.ts`.
+
+| Ruta | Rol | Qué hace |
+| --- | --- | --- |
+| `/panel/solicitudes` · `/[id]` | ADMIN | Lista con filtros en la URL; detalle, aprobar, asignar/reasignar responsable, recursos en solo lectura |
+| `/panel/usuarios` | ADMIN | Alta, edición, activar/desactivar y reenvío de credenciales |
+| `/panel/recursos` | ADMIN | Catálogo global y CRUD de recursos humanos, materiales y logísticos |
+| `/panel/roles-operativos` | ADMIN | CRUD de roles operativos |
+| `/panel/mis-solicitudes` · `/[id]` | LOGISTICS | Activas e historial; detalle con confirmación de recursos, acuerdos, propuesta (generar, descargar, enviar) y agendado |
+| `/panel/calendario` | ADMIN · LOGISTICS | Calendario mensual; logística además edita, cancela y reintenta la sincronización de sus eventos |
+
+## Scripts
+
+| Comando | Qué hace |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo en el puerto 3001 |
+| `npm run build` / `npm start` | Build de producción y servidor |
+| `npm run lint` | ESLint |
+| `npm test` | Pruebas (Vitest) |
+
+## Calidad
+
+- **Accesibilidad:** sin hallazgos WCAG 2 A/AA de axe-core en todas las rutas; foco retenido en
+  modales, enlace «Saltar al contenido», títulos de pestaña por página y textos dorados con contraste AA
+  (`gold-dark` sobre fondos claros).
+- **Responsive:** sin desbordes horizontales a 390 px; las tablas pasan a tarjetas en móvil.
+- **Errores:** pantallas de error de React (`error.tsx`) para el sitio y el panel, 404 dentro del panel y
+  cierre de sesión automático ante un 401 (regresa a la página original tras volver a entrar).
+- **Pruebas:** `npm test` cubre la capa HTTP, todos los módulos de `lib/api`, estados, permisos,
+  fechas y validaciones.
+
+## Estructura
+
+```
+src/
+  app/            rutas: (public) sitio, (auth) acceso, panel/ backstage
+  components/ui/  kit de componentes
+  components/public/  landing (contenido mock en content.ts), timeline, buscador de folio
+  lib/api/        un módulo por área del contrato (+ http.ts)
+  components/backstage/  shell del panel, calendario, tablas compartidas
+  components/logistics/  pestañas del detalle de logística
+  lib/            estados, permisos, fechas (hora de Mérida), validaciones
+```

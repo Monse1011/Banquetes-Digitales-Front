@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f5ebe8;
+  --color-cream-dark: #ecdcd7;
+  --color-ink: #2c1a1d;
+  --color-muted: #6f5a5e;
+  --color-line: #e3d2cd;
+  --color-wine: #7a2e3a;
+  --color-wine-dark: #5e2029;
+  --color-gold: #b8925a;
+  /* Texto dorado sobre fondos claros (contraste AA). */
+  --color-gold-dark: #7d5f2c;
+  --color-ok: #2f7a4d;
+  --color-warn: #a86b12;
+  --color-danger: #b42e2e;
+
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-playfair), ui-serif, Georgia, serif;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
