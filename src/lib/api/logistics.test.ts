@@ -51,7 +51,11 @@ describe("logistics api", () => {
     let fetchMock = mockFetch(204);
     const item = { resource_id: 2, quantity: 40, usage_start: "2026-12-24 18:00:00", usage_end: "2026-12-24 23:00:00", observation: null };
     await assignProvisional(1, [item]);
-    expect(call(fetchMock).body).toEqual({ data: [item], observations: null });
+    expect(call(fetchMock).body).toEqual({ data: [item] });
+
+    fetchMock = mockFetch(204);
+    await assignProvisional(1, [item], "Llegar temprano");
+    expect(call(fetchMock).body).toEqual({ data: [item], observations: "Llegar temprano" });
 
     fetchMock = mockFetch(204);
     await releaseProvisional(1, 2);

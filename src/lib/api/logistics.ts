@@ -135,7 +135,8 @@ export type ProvisionalItem = {
 export async function assignProvisional(requestId: number | string, items: ProvisionalItem[], observations?: string | null) {
   await api(`/api/logistics/requests/${requestId}/resources`, {
     method: "POST",
-    body: { data: items, observations: observations || null },
+    // Sin observaciones se omite la clave: el back guarda `null` en una columna NOT NULL y responde 500.
+    body: { data: items, observations: observations || undefined },
   });
 }
 
