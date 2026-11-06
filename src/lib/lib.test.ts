@@ -3,7 +3,7 @@ import { normalizeUser } from "./api/auth";
 import { can, navFor } from "./auth/permissions";
 import { endsNextDay, formatTime, meridaToIso, parseDateTime, TIME_SLOTS, toMeridaDateTime } from "./format";
 import { canConfirmResources, flowStepIndex, normalizeStatus, statusLabel } from "./status";
-import { toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
+import { hasLetter, isValidPrice, toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
 
 describe("normalizeUser", () => {
   it("unifica camelCase (login) y snake_case (session)", () => {
@@ -96,5 +96,24 @@ describe("validation", () => {
   it("aplica la política de contraseñas", () => {
     expect(validatePassword("abc")).toMatch(/8 caracteres/);
     expect(validatePassword("Password123!")).toBeUndefined();
+  });
+});
+
+describe("recursos humanos y roles", () => {
+  it("exige al menos una letra en el nombre", () => {
+    expect(hasLetter("12345")).toBe(false);
+    expect(hasLetter("  ")).toBe(false);
+    expect(hasLetter("Mesero 2")).toBe(true);
+    expect(hasLetter("Ñandú")).toBe(true);
+  });
+
+  it("valida el precio por hora: > 0 y máximo 2 decimales", () => {
+    expect(isValidPrice("150")).toBe(true);
+    expect(isValidPrice("150.75")).toBe(true);
+    expect(isValidPrice("0")).toBe(false);
+    expect(isValidPrice("0.00")).toBe(false);
+    expect(isValidPrice("10.555")).toBe(false);
+    expect(isValidPrice("-5")).toBe(false);
+    expect(isValidPrice("")).toBe(false);
   });
 });

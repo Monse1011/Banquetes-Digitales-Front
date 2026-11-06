@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { approveRequest, assignLogisticUser, listAdminRequests } from "./admin-requests";
 import { isSynced } from "./calendar";
 import { ApiError } from "./http";
-import { createHumanResource, listResourcesByType, setResourceActive } from "./resources";
+import { createHumanResource, listResourcesByType, setResourceActive, updateHumanResource } from "./resources";
 import { createUser, listUsers, setUserStatus } from "./users";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -74,18 +74,35 @@ describe("resources", () => {
 
   it("marca requires_confirmation en el 409 de duplicado", async () => {
     mockFetch(409, { message: "Posible duplicado", requires_confirmation: true });
-    const error = await createHumanResource({ name: "Ana", operative_role_id: 1 }).catch((e) => e);
+    const error = await createHumanResource({ name: "Ana", operative_role_id: 1, precio: 150 }).catch((e) => e);
     expect(error.payload.requires_confirmation).toBe(true);
   });
 
   it("confirma el duplicado y cambia estado", async () => {
     let fetchMock = mockFetch(201);
-    await createHumanResource({ name: "Ana", operative_role_id: 1 }, true);
-    expect(call(fetchMock).body).toEqual({ data: { name: "Ana", operative_role_id: 1, confirm_duplicate: true } });
+    await createHumanResource({ name: "Ana", operative_role_id: 1, precio: 150.5 }, true);
+    expect(call(fetchMock).body).toEqual({ data: { name: "Ana", operative_role_id: 1, precio: 150.5, confirm_duplicate: true } });
 
     fetchMock = mockFetch(204);
     await setResourceActive("LOGISTIC", 9, false);
     expect(call(fetchMock)).toEqual({ url: "/api/admin/resources/logistic/9", method: "PUT", body: { data: { is_active: false } } });
+  });
+});
+
+describe("recursos humanos", () => {
+  it("envía precio como número al editar y expone el 422 por campo", async () => {
+    let fetchMock = mockFetch(200);
+    await updateHumanResource(3, { name: "Ana López", operative_role_id: 1, precio: 120 });
+    expect(call(fetchMock)).toEqual({
+      url: "/api/admin/resources/human/3",
+      method: "PATCH",
+      body: { data: { name: "Ana López", operative_role_id: 1, precio: 120 } },
+    });
+
+    const message = "El nombre completo debe contener al menos una letra.";
+    fetchMock = mockFetch(422, { message, errors: { name: message } });
+    const error = await updateHumanResource(3, { name: "123", operative_role_id: 1, precio: 120 }).catch((e) => e);
+    expect(error.fieldErrors.name).toBe(message);
   });
 });
 

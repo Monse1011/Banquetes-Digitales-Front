@@ -24,6 +24,13 @@ export const PASSWORD_RULES = [
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const FULL_NAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s[A-Za-zÀ-ÖØ-öø-ÿ]+)+$/;
+/** Nombres de rol y de persona: el back exige al menos una letra. */
+export const hasLetter = (value: string) => /\p{L}/u.test(value);
+
+/** Precio por hora: número > 0 con máximo 2 decimales (mismo mensaje que el back). */
+export const PRICE_ERROR = "El precio por hora es obligatorio y debe ser un número mayor a 0 con máximo 2 decimales.";
+export const isValidPrice = (value: string) => /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) > 0;
+
 export const PHONE_REGEX = /^\d{10}$/;
 export const FOLIO_REGEX = /^BD-\d{4}-\d{5}$/;
 

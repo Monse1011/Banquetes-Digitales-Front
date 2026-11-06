@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/resources";
 import { formatMoney } from "@/lib/format";
 import { useQuery, useUrlFilters } from "@/lib/hooks";
+import { hasLetter, isValidPrice, PRICE_ERROR } from "@/lib/validation";
 
 type Tab = "catalog" | "HUMAN" | "MATERIAL" | "LOGISTIC";
 
@@ -70,6 +71,16 @@ function ResourcesPage() {
           },
         ]
       : []),
+    ...(tab === "HUMAN"
+      ? [
+          {
+            key: "precio",
+            header: "Precio por hora",
+            className: "text-right",
+            render: (r: Resource) => (r.precio != null ? formatMoney(r.precio) : <Badge tone="warn">Sin precio</Badge>),
+          },
+        ]
+      : []),
     ...(tab !== "HUMAN"
       ? [
           { key: "quantity", header: "Cantidad", className: "text-right", render: (r: Resource) => r.quantity ?? "—" },
@@ -77,7 +88,14 @@ function ResourcesPage() {
             key: "cost",
             header: "Costo unitario",
             className: "text-right",
-            render: (r: Resource) => (r.unit_cost !== undefined && r.unit_cost !== null ? formatMoney(r.unit_cost) : "—"),
+            render: (r: Resource) =>
+              r.type === "HUMAN"
+                ? r.precio != null
+                  ? `${formatMoney(r.precio)}/h`
+                  : "—"
+                : r.unit_cost !== undefined && r.unit_cost !== null
+                  ? formatMoney(r.unit_cost)
+                  : "—",
           },
         ]
       : []),
@@ -264,6 +282,8 @@ function HumanForm({
   const toast = useToast();
   const [name, setName] = useState(resource?.name ?? "");
   const [roleId, setRoleId] = useState(resource?.operative_role_id ? String(resource.operative_role_id) : "");
+  const [precio, setPrecio] = useState(resource?.precio != null ? String(resource.precio) : "");
+  const missingPrice = Boolean(resource) && resource?.precio == null;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [duplicate, setDuplicate] = useState("");
@@ -272,11 +292,13 @@ function HumanForm({
   const save = async (confirmDuplicate = false) => {
     const found: Record<string, string> = {};
     if (!name.trim()) found.name = "El nombre es obligatorio.";
+    else if (!hasLetter(name)) found.name = "El nombre completo debe contener al menos una letra.";
     if (!roleId) found.operative_role_id = "Selecciona un rol operativo.";
+    if (!isValidPrice(precio)) found.precio = PRICE_ERROR;
     setErrors(found);
     setError("");
     if (Object.keys(found).length) return;
-    const input = { name: name.trim(), operative_role_id: Number(roleId) };
+    const input = { name: name.trim(), operative_role_id: Number(roleId), precio: Number(precio) };
     setBusy(true);
     try {
       if (resource) await updateHumanResource(resource.id, input);
@@ -331,6 +353,22 @@ function HumanForm({
             </option>
           ))}
         </SelectField>
+        {missingPrice ? (
+          <Alert tone="warn" title="Falta el precio por hora">
+            Esta persona se registró antes de que existiera el precio por hora. Captúralo para poder guardar los cambios.
+          </Alert>
+        ) : null}
+        <TextField
+          label="Precio por hora (MXN)"
+          type="number"
+          min={0.01}
+          step="0.01"
+          inputMode="decimal"
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
+          error={errors.precio}
+          required
+        />
         {duplicate ? (
           <Alert tone="warn" title="Posible duplicado">
             {duplicate}
