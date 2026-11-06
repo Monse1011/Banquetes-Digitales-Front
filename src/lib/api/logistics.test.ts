@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assignProvisional,
+  changedResources,
   confirmResources,
   downloadProposal,
   editEvent,
@@ -66,8 +67,8 @@ describe("logistics api", () => {
     await expect(
       saveAgreements(1, {
         location: "Hacienda",
-        start_datetime: "2026-12-24 18:30:00",
-        end_datetime: "2026-12-24 23:30:00",
+        start_datetime: "2026-12-24T18:30:00-06:00",
+        end_datetime: "2026-12-24T23:30:00-06:00",
         observations: null,
         adjusted_resources: [{ resource_id: 2, quantity: 50 }],
         derived_information_id: 5,
@@ -78,6 +79,41 @@ describe("logistics api", () => {
     fetchMock = mockFetch(201, { data: { proposals_code: "PROP-2026-001" } });
     await generateProposal(1, { derived_information_id: 6, client_observations: null, discount_amount: 200 });
     expect(call(fetchMock).body).toEqual({ data: { derived_information_id: 6, client_observations: null, discount_amount: 200 } });
+  });
+
+  it("en acuerdos envía solo lo que cambió: omite lo no tocado y libera con 0", () => {
+    const assigned = [
+      { resource_id: 1, name: "Ana", type: "HUMAN" as const, quantity: 1, unit_cost: null },
+      { resource_id: 2, name: "Sillas", type: "MATERIAL" as const, quantity: 50, unit_cost: 10 },
+      { resource_id: 3, name: "Camioneta", type: "LOGISTIC" as const, quantity: 1, unit_cost: 500 },
+    ];
+    // Ana se libera, Sillas no se tocó (mismo valor) y Camioneta cambió: no hace falta enviar todas las categorías.
+    expect(changedResources(assigned, { 1: "0", 2: "50", 3: "2" })).toEqual([
+      { resource_id: 1, quantity: 0 },
+      { resource_id: 3, quantity: 2 },
+    ]);
+    expect(changedResources(assigned, { 1: "1", 2: "50", 3: "1" })).toEqual([]);
+  });
+
+  it("expone los errores por campo y los conflictos de acuerdos", async () => {
+    const message = "Mesero Ana: La cantidad ajustada de un recurso humano debe ser 1 o 0 para liberarlo.";
+    mockFetch(400, { message, errors: { adjusted_resources: message } });
+    const input = {
+      location: "Hacienda",
+      start_datetime: "2026-12-24T18:30:00-06:00",
+      end_datetime: "2026-12-24T23:30:00-06:00",
+      observations: null,
+      adjusted_resources: [{ resource_id: 1, quantity: 2 }],
+      derived_information_id: 5,
+    };
+    const error = await saveAgreements(1, input).catch((e) => e);
+    expect(error.fieldErrors.adjusted_resources).toBe(message);
+    expect(error.message).toBe(message);
+
+    const conflict = "Camioneta no se modificó, pero su cantidad asignada (1) ya no está disponible para el horario indicado (disponible: 0).";
+    mockFetch(409, { message: "Conflicto", conflicts: [{ message: conflict }] });
+    const error409 = await saveAgreements(1, input).catch((e) => e);
+    expect(error409.payload.conflicts[0].message).toBe(conflict);
   });
 
   it("descarga el PDF con el nombre del Content-Disposition", async () => {

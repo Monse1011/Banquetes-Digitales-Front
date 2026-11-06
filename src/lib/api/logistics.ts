@@ -219,6 +219,13 @@ export type AgreementsInput = {
   derived_information_id: number | null;
 };
 
+/** Solo lo que cambió: un recurso sin tocar se omite (el back lo deja igual); cantidad 0 lo libera. */
+export function changedResources(assigned: AgreementResource[], quantities: Record<number, string>) {
+  return assigned
+    .filter((r) => quantities[r.resource_id] !== undefined && Number(quantities[r.resource_id]) !== r.quantity)
+    .map((r) => ({ resource_id: r.resource_id, quantity: Number(quantities[r.resource_id]) }));
+}
+
 export async function saveAgreements(requestId: number | string, input: AgreementsInput): Promise<number> {
   const raw = await api<{ data: { derived_information_id: number } }>(`/api/logistics/requests/${requestId}/derived-information`, {
     method: "POST",
