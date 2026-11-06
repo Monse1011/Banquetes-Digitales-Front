@@ -74,10 +74,18 @@ export function meridaToIso(date: string, time: string): string {
   return new Date(`${date}T${time}:00${MERIDA_OFFSET}`).toISOString();
 }
 
-/** Fecha y hora locales → `YYYY-MM-DD HH:mm:ss`, formato de los endpoints de logística. */
-export function toSqlDateTime(date: string, time: string): string {
-  return `${date} ${time.slice(0, 5)}:00`;
+/** Fecha y hora locales → `YYYY-MM-DDTHH:mm:00-06:00`; el back exige offset o `Z` (sin zona usa la hora del servidor). */
+export function toMeridaDateTime(date: string, time: string): string {
+  return `${date}T${time.slice(0, 5)}:00${MERIDA_OFFSET}`;
 }
+
+/** Misma regla que el back: si la hora de fin no es posterior a la de inicio, el evento termina al día siguiente. */
+export function endsNextDay(startTime: string, endTime: string): boolean {
+  return Boolean(startTime && endTime) && endTime <= startTime;
+}
+
+/** Horarios cada 30 min ("00:00" … "23:30") para los selectores de hora. */
+export const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
 /** Cualquier fecha/hora del back → partes locales para inputs `date`/`time`. */
 export function toInputParts(value: string | null | undefined): { date: string; time: string } {

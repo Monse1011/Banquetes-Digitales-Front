@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeUser } from "./api/auth";
 import { can, navFor } from "./auth/permissions";
-import { formatTime, meridaToIso, parseDateTime, toSqlDateTime } from "./format";
+import { endsNextDay, formatTime, meridaToIso, parseDateTime, TIME_SLOTS, toMeridaDateTime } from "./format";
 import { canConfirmResources, flowStepIndex, normalizeStatus, statusLabel } from "./status";
 import { toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
 
@@ -45,7 +45,8 @@ describe("format", () => {
   it("interpreta el formato SQL del calendario como hora local", () => {
     expect(parseDateTime("2026-12-24 18:00:00")?.toISOString()).toBe("2026-12-25T00:00:00.000Z");
     expect(formatTime("2026-12-24T18:30:00-06:00")).toBe("18:30");
-    expect(toSqlDateTime("2026-12-24", "18:30")).toBe("2026-12-24 18:30:00");
+    expect(toMeridaDateTime("2026-12-24", "18:30")).toBe("2026-12-24T18:30:00-06:00");
+    expect(new Date(toMeridaDateTime("2026-12-24", "18:30")).toISOString()).toBe("2026-12-25T00:30:00.000Z");
   });
 });
 
@@ -56,7 +57,6 @@ describe("validation", () => {
     phone: "9991234567",
     event_date: "2026-12-24",
     start_time: "18:00",
-    end_date: "",
     end_time: "23:00",
     guest_count: "120",
     event_address: "Hacienda San Antonio",
@@ -69,16 +69,28 @@ describe("validation", () => {
 
   it("marca los mismos campos que el back", () => {
     const errors = validateReservation(
-      { ...valid, client_full_name: "Mariana", phone: "123", end_time: "17:00", guest_count: "0", services_ids: [] },
+      { ...valid, client_full_name: "Mariana", phone: "123", end_time: "", guest_count: "0", services_ids: [] },
       "2026-10-29",
     );
     expect(Object.keys(errors).sort()).toEqual(["client_full_name", "event_end_time", "guest_count", "phone", "services_ids"]);
   });
 
-  it("permite terminar al día siguiente", () => {
-    const form = { ...valid, end_date: "2026-12-25", end_time: "02:00" };
+  it("calcula el día siguiente cuando horaFin <= horaInicio (sin casilla)", () => {
+    const form = { ...valid, end_time: "02:00" };
     expect(validateReservation(form, "2026-10-29")).toEqual({});
     expect(toReservationPayload(form).event_end_time).toBe("2026-12-25T08:00:00.000Z");
+    expect(toReservationPayload({ ...valid, end_time: "18:00" }).event_end_time).toBe("2026-12-26T00:00:00.000Z");
+    expect(toReservationPayload(valid).event_end_time).toBe("2026-12-25T05:00:00.000Z");
+  });
+
+  it("aplica la misma regla de día siguiente que el back", () => {
+    expect(endsNextDay("18:00", "02:00")).toBe(true);
+    expect(endsNextDay("18:00", "18:00")).toBe(true);
+    expect(endsNextDay("18:00", "23:00")).toBe(false);
+    expect(endsNextDay("18:00", "")).toBe(false);
+    expect(TIME_SLOTS).toHaveLength(48);
+    expect(TIME_SLOTS.slice(0, 2)).toEqual(["00:00", "00:30"]);
+    expect(TIME_SLOTS.at(-1)).toBe("23:30");
   });
 
   it("aplica la política de contraseñas", () => {

@@ -2,7 +2,7 @@
 // ("Asignada", "Coordinación Lista"…); se normalizan con lib/status.
 import { api, apiBlob, readPagination, type Paginated } from "./http";
 import type { ResourceType } from "./resources";
-import { addDays, toSqlDateTime } from "@/lib/format";
+import { addDays, toMeridaDateTime } from "@/lib/format";
 
 export type AssignedRequestSummary = {
   request_id: number;
@@ -119,7 +119,7 @@ export async function listAvailability(
 /** Ventana de uso por defecto = horario del evento (si termina antes de empezar, cruza medianoche). */
 export function defaultUsageWindow(meta: AvailabilityRequestMeta) {
   const endDate = meta.end_time <= meta.start_time ? addDays(meta.event_date, 1) : meta.event_date;
-  return { usage_start: toSqlDateTime(meta.event_date, meta.start_time), usage_end: toSqlDateTime(endDate, meta.end_time) };
+  return { usage_start: toMeridaDateTime(meta.event_date, meta.start_time), usage_end: toMeridaDateTime(endDate, meta.end_time) };
 }
 
 export type ProvisionalItem = {

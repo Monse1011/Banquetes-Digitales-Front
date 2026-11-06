@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError, errorMessage } from "@/lib/api/http";
 import { getAgreements, saveAgreements, type Agreements } from "@/lib/api/logistics";
 import { RESOURCE_TYPE_LABELS } from "@/lib/api/resources";
-import { formatDateTime, formatMoney, toInputParts, toSqlDateTime } from "@/lib/format";
+import { formatDateTime, formatMoney, toInputParts, toMeridaDateTime } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 
 type Form = {
@@ -101,8 +101,8 @@ function AgreementsForm({
     try {
       await saveAgreements(requestId, {
         location: form.location.trim(),
-        start_datetime: toSqlDateTime(form.start_date, form.start_time),
-        end_datetime: toSqlDateTime(form.end_date, form.end_time),
+        start_datetime: toMeridaDateTime(form.start_date, form.start_time),
+        end_datetime: toMeridaDateTime(form.end_date, form.end_time),
         observations: form.observations.trim() || null,
         adjusted_resources: data.assigned_resources.map((r) => ({
           resource_id: r.resource_id,

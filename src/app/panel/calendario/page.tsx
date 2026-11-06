@@ -13,7 +13,7 @@ import { errorMessage } from "@/lib/api/http";
 import { cancelEvent, editEvent, retrySync } from "@/lib/api/logistics";
 import { useAuth } from "@/lib/auth/auth-context";
 import { can } from "@/lib/auth/permissions";
-import { todayInMerida, toInputParts, toSqlDateTime } from "@/lib/format";
+import { todayInMerida, toInputParts, toMeridaDateTime } from "@/lib/format";
 import { normalizeStatus } from "@/lib/status";
 
 export default function CalendarPage() {
@@ -129,8 +129,8 @@ function EditEventModal({ event, onClose, onSaved }: { event: CalendarEvent; onC
     try {
       await editEvent(event.event_id, {
         location: values.location.trim(),
-        start_datetime: toSqlDateTime(values.start_date, values.start_time),
-        end_datetime: toSqlDateTime(values.end_date, values.end_time),
+        start_datetime: toMeridaDateTime(values.start_date, values.start_time),
+        end_datetime: toMeridaDateTime(values.end_date, values.end_time),
       });
       onSaved();
     } catch (err) {

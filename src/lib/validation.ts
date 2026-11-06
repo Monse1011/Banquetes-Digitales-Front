@@ -1,5 +1,5 @@
 // Reglas replicadas del back para dar retroalimentación inmediata. El back sigue siendo la fuente de verdad.
-import { meridaToIso, todayInMerida } from "./format";
+import { addDays, endsNextDay, meridaToIso, todayInMerida } from "./format";
 
 /** domain/value-objects/password.js */
 export function validatePassword(password: string): string | undefined {
@@ -37,7 +37,6 @@ export type ReservationForm = {
   phone: string;
   event_date: string;
   start_time: string;
-  end_date: string;
   end_time: string;
   guest_count: string;
   event_address: string;
@@ -71,11 +70,9 @@ export function validateReservation(form: ReservationForm, today = todayInMerida
   if (!form.event_date || !form.start_time || form.event_date < today) {
     errors.event_date_time = "Seleccione una fecha válida. No puede ser anterior a la fecha actual.";
   }
-  const endDate = form.end_date || form.event_date;
-  if (!form.end_time || !endDate) {
-    errors.event_end_time = "Seleccione una fecha y hora de fin válidas.";
-  } else if (form.event_date && form.start_time && `${endDate}T${form.end_time}` <= `${form.event_date}T${form.start_time}`) {
-    errors.event_end_time = "La hora de fin debe ser posterior a la hora de inicio.";
+  // Si la hora de fin no es posterior a la de inicio, el evento termina al día siguiente (el back valida el resto).
+  if (!form.end_time) {
+    errors.event_end_time = "Seleccione una hora de fin.";
   }
   const guests = Number(form.guest_count);
   if (!Number.isInteger(guests) || guests <= 0) {
@@ -96,9 +93,14 @@ export function toReservationPayload(form: ReservationForm): ReservationPayload 
     email: form.email.trim(),
     phone: form.phone.trim(),
     event_date_time: meridaToIso(form.event_date, form.start_time),
-    event_end_time: meridaToIso(form.end_date || form.event_date, form.end_time),
+    event_end_time: meridaToIso(eventEndDate(form), form.end_time),
     guest_count: Number(form.guest_count),
     event_address: form.event_address.trim(),
     services_ids: form.services_ids,
   };
+}
+
+/** Día de fin del evento: el siguiente si la hora de fin no es posterior a la de inicio. */
+export function eventEndDate(form: Pick<ReservationForm, "event_date" | "start_time" | "end_time">): string {
+  return endsNextDay(form.start_time, form.end_time) ? addDays(form.event_date, 1) : form.event_date;
 }
