@@ -11,7 +11,7 @@ import { LogisticsSummary } from "@/components/backstage/logistics-summary";
 const DESCRIPTIONS: Record<string, string> = {
   "/panel/solicitudes": "Revisa, aprueba y asigna responsable a las solicitudes de los clientes.",
   "/panel/mis-solicitudes": "Coordina recursos, acuerdos y propuestas de los eventos a tu cargo.",
-  "/panel/calendario": "Consulta los eventos agendados y su sincronización.",
+  "/panel/calendario": "Consulta los eventos agendados.",
   "/panel/usuarios": "Administra las cuentas del personal y sus credenciales.",
   "/panel/recursos": "Catálogo de personal, material e insumos logísticos.",
   "/panel/roles-operativos": "Puestos que puede desempeñar el personal operativo.",

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { approveRequest, assignLogisticUser, listAdminRequests } from "./admin-requests";
-import { isSynced } from "./calendar";
+import { listCalendarEvents } from "./calendar";
 import { ApiError } from "./http";
 import { createHumanResource, listResourcesByType, setResourceActive, updateHumanResource } from "./resources";
 import { createUser, listUsers, setUserStatus } from "./users";
@@ -107,9 +107,10 @@ describe("recursos humanos", () => {
 });
 
 describe("calendar", () => {
-  it("entiende el estado de sincronización en inglés y español", () => {
-    expect(isSynced("SYNCED")).toBe(true);
-    expect(isSynced("Sincronizado")).toBe(true);
-    expect(isSynced("Pendiente de sincronización")).toBe(false);
+  it("pide los próximos eventos al back con upcoming=true", async () => {
+    const fetchMock = mockFetch(200, { data: { events: [{ event_id: 1 }] } });
+    const result = await listCalendarEvents("logistics", { upcoming: true, per_page: 500 });
+    expect(call(fetchMock).url).toBe("/api/logistics/calendar?upcoming=true&per_page=500");
+    expect(result.items).toHaveLength(1);
   });
 });

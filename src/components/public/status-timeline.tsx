@@ -5,6 +5,8 @@ import { FLOW_STEPS, flowStepIndex, normalizeStatus } from "@/lib/status";
 export function StatusTimeline({ status, clientFacing = true }: { status: string; clientFacing?: boolean }) {
   const normalized = normalizeStatus(status);
   const current = flowStepIndex(status);
+  // Finalizado es el último paso: con el estado normalizado (CONFIRMED/"Confirmado", FINALIZED/"Finalizado") se marca completo.
+  const finished = normalized === "FINALIZED";
 
   if (normalized === "CANCELED" || normalized === "REJECTED") {
     return (
@@ -20,8 +22,8 @@ export function StatusTimeline({ status, clientFacing = true }: { status: string
   return (
     <ol className="grid grid-cols-3 gap-y-6 sm:grid-cols-6">
       {FLOW_STEPS.map((step, index) => {
-        const done = index < current;
-        const active = index === current;
+        const done = index < current || finished;
+        const active = index === current && !finished;
         return (
           <li key={step.key} className="relative flex flex-col items-center text-center">
             {index > 0 ? (

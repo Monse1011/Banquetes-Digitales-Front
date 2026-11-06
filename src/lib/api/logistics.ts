@@ -58,6 +58,8 @@ export type AssignedRequestDetail = {
   status: string;
   proposal_viewed_at: string | null;
   can_register_agreements: boolean;
+  /** Muestra "Registrar finalización": Confirmado y hoy (Mérida) entre el día de inicio y el de fin. */
+  can_register_finalization: boolean;
   adjustments: ClientAdjustment[];
 };
 
@@ -263,13 +265,14 @@ export async function sendProposal(requestId: number | string): Promise<void> {
 // --- Calendario (§5.4) ---
 
 export async function scheduleEvent(requestId: number | string) {
-  const raw = await api<{ data: { event_id: number; sync_status: string } }>(`/api/logistics/requests/${requestId}/calendar`, {
+  const raw = await api<{ data: { event_id: number } }>(`/api/logistics/requests/${requestId}/calendar`, {
     method: "POST",
   });
   return raw?.data;
 }
 
-export async function editEvent(eventId: number, input: { location: string; start_datetime: string; end_datetime: string }) {
+/** En eventos Confirmados el back rechaza (422) cambios de fecha y hora: solo se envía la ubicación. */
+export async function editEvent(eventId: number, input: { location: string }) {
   await api(`/api/logistics/calendar/${eventId}`, { method: "PATCH", body: { data: input } });
 }
 
@@ -277,7 +280,12 @@ export async function cancelEvent(eventId: number) {
   await api(`/api/logistics/calendar/${eventId}`, { method: "DELETE" });
 }
 
-export async function retrySync(eventId: number): Promise<string | undefined> {
-  const raw = await api<{ message?: string }>(`/api/logistics/calendar/${eventId}/sync`, { method: "POST" });
-  return raw?.message;
+// --- Cierre del evento (§3.6) ---
+
+/** Horas reales con offset (`2026-11-15T18:10:00-06:00`); 422 si no está Confirmado o ya se finalizó, 409 fuera del día. */
+export async function finalizeEvent(
+  requestId: number | string,
+  input: { actual_start_at: string; actual_end_at: string; event_observation: string | null },
+) {
+  await api(`/api/logistics/requests/${requestId}/ending`, { method: "PATCH", body: { data: { ...input, status: "FINALIZED" } } });
 }

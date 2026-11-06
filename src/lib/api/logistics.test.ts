@@ -4,6 +4,7 @@ import {
   confirmResources,
   downloadProposal,
   editEvent,
+  finalizeEvent,
   generateProposal,
   listAssignedRequests,
   listAvailability,
@@ -85,13 +86,32 @@ describe("logistics api", () => {
     expect(filename).toBe("PROP-2026-001.pdf");
   });
 
-  it("edita el evento sin tocar responsable ni recursos", async () => {
-    const fetchMock = mockFetch(200);
-    await editEvent(10, { location: "Nueva", start_datetime: "2026-12-24 19:00:00", end_datetime: "2026-12-25 00:00:00" });
+  it("edita solo la ubicación del evento y expone el 422 de fecha y hora", async () => {
+    let fetchMock = mockFetch(200);
+    await editEvent(10, { location: "Nueva" });
+    expect(call(fetchMock)).toEqual({ url: "/api/logistics/calendar/10", method: "PATCH", body: { data: { location: "Nueva" } } });
+
+    const message = "No es posible cambiar la fecha ni la hora de un evento confirmado. Solo se puede modificar la ubicación.";
+    fetchMock = mockFetch(422, { message, errors: { start_datetime: message } });
+    const error = await editEvent(10, { location: "Nueva" }).catch((e) => e);
+    expect(error.status).toBe(422);
+    expect(error.fieldErrors.start_datetime).toBe(message);
+  });
+
+  it("registra la finalización con horas con offset y expone el 422", async () => {
+    let fetchMock = mockFetch(200, { data: {} });
+    await finalizeEvent(7, { actual_start_at: "2026-11-15T18:10:00-06:00", actual_end_at: "2026-11-15T23:20:00-06:00", event_observation: null });
     expect(call(fetchMock)).toEqual({
-      url: "/api/logistics/calendar/10",
+      url: "/api/logistics/requests/7/ending",
       method: "PATCH",
-      body: { data: { location: "Nueva", start_datetime: "2026-12-24 19:00:00", end_datetime: "2026-12-25 00:00:00" } },
+      body: {
+        data: { actual_start_at: "2026-11-15T18:10:00-06:00", actual_end_at: "2026-11-15T23:20:00-06:00", event_observation: null, status: "FINALIZED" },
+      },
     });
+
+    fetchMock = mockFetch(422, { message: "El evento ya fue finalizado y no puede modificarse." });
+    const error = await finalizeEvent(7, { actual_start_at: "x", actual_end_at: "y", event_observation: null }).catch((e) => e);
+    expect(error.status).toBe(422);
+    expect(error.message).toBe("El evento ya fue finalizado y no puede modificarse.");
   });
 });

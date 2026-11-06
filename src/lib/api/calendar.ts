@@ -12,21 +12,15 @@ export type CalendarEvent = {
   end_datetime: string;
   location: string;
   status: string;
-  sync_status: string;
 };
 
 export type CalendarScope = "admin" | "logistics";
 
-export type CalendarFilters = { date?: string; include_cancelled?: boolean; page?: number; per_page?: number };
+/** `upcoming`: solo eventos no Finalizados cuya hora de fin aún no pasa. */
+export type CalendarFilters = { date?: string; include_cancelled?: boolean; upcoming?: boolean; page?: number; per_page?: number };
 
 export async function listCalendarEvents(scope: CalendarScope, filters: CalendarFilters): Promise<Paginated<CalendarEvent>> {
   const raw = await api<{ data: { events: CalendarEvent[] } }>(`/api/${scope}/calendar`, { query: filters });
   const items = raw?.data?.events ?? [];
   return { items, pagination: readPagination(raw, items.length) };
-}
-
-/** El contrato usa SYNCED/PENDING; el back responde "Sincronizado" / "Pendiente de sincronización". */
-export function isSynced(syncStatus: string | null | undefined): boolean {
-  const value = (syncStatus ?? "").toUpperCase();
-  return value === "SYNCED" || value === "SINCRONIZADO";
 }
