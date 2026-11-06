@@ -231,6 +231,9 @@ function AgreementsForm({
                 <tr className="border-t border-line font-medium">
                   <td colSpan={4} className="px-5 py-3 text-right">
                     Subtotal estimado
+                    <span className="block text-xs font-normal text-muted">
+                      No incluye personal; el total se calcula al generar la propuesta.
+                    </span>
                   </td>
                   <td className="px-5 py-3 text-right">{formatMoney(subtotal)}</td>
                 </tr>
