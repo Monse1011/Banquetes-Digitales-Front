@@ -3,7 +3,7 @@ import { normalizeUser } from "./api/auth";
 import { can, navFor } from "./auth/permissions";
 import { endsNextDay, formatTime, meridaToIso, parseDateTime, TIME_SLOTS, toMeridaDateTime } from "./format";
 import { canConfirmResources, flowStepIndex, normalizeStatus, statusLabel } from "./status";
-import { hasLetter, isValidPrice, toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
+import { hasDigit, hasLetter, isValidPrice, toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
 
 describe("normalizeUser", () => {
   it("unifica camelCase (login) y snake_case (session)", () => {
@@ -105,6 +105,11 @@ describe("recursos humanos y roles", () => {
     expect(hasLetter("  ")).toBe(false);
     expect(hasLetter("Mesero 2")).toBe(true);
     expect(hasLetter("Ñandú")).toBe(true);
+  });
+
+  it("rechaza números en el nombre", () => {
+    expect(hasDigit("Mesero 2")).toBe(true);
+    expect(hasDigit("Jenny Rivera")).toBe(false);
   });
 
   it("valida el precio por hora: > 0 y máximo 2 decimales", () => {

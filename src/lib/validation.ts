@@ -26,6 +26,8 @@ export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const FULL_NAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s[A-Za-zÀ-ÖØ-öø-ÿ]+)+$/;
 /** Nombres de rol y de persona: el back exige al menos una letra. */
 export const hasLetter = (value: string) => /\p{L}/u.test(value);
+/** Los nombres de rol y de persona no admiten números (ajuste QA). */
+export const hasDigit = (value: string) => /\p{N}/u.test(value);
 
 /** Precio por hora: número > 0 con máximo 2 decimales (mismo mensaje que el back). */
 export const PRICE_ERROR = "El precio por hora es obligatorio y debe ser un número mayor a 0 con máximo 2 decimales.";

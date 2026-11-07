@@ -28,7 +28,7 @@ import {
 } from "@/lib/api/resources";
 import { formatMoney } from "@/lib/format";
 import { useQuery, useUrlFilters } from "@/lib/hooks";
-import { hasLetter, isValidPrice, PRICE_ERROR } from "@/lib/validation";
+import { hasDigit, hasLetter, isValidPrice, PRICE_ERROR } from "@/lib/validation";
 
 type Tab = "catalog" | "HUMAN" | "MATERIAL" | "LOGISTIC";
 
@@ -293,6 +293,7 @@ function HumanForm({
     const found: Record<string, string> = {};
     if (!name.trim()) found.name = "El nombre es obligatorio.";
     else if (!hasLetter(name)) found.name = "El nombre completo debe contener al menos una letra.";
+    else if (hasDigit(name)) found.name = "El nombre completo no puede contener números.";
     if (!roleId) found.operative_role_id = "Selecciona un rol operativo.";
     if (!isValidPrice(precio)) found.precio = PRICE_ERROR;
     setErrors(found);
