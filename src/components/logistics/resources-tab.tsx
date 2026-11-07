@@ -213,7 +213,7 @@ export function ResourcesTab({ requestId, onChanged }: { requestId: number; onCh
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-cream/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
         <p className="text-sm text-muted">
-          {pending.length ? `${pending.length} recurso(s) por guardar` : "Captura cantidades y guarda; después confirma la asignación."}
+          {pending.length ? `${pending.length} recurso(s) por guardar` : "Captura cantidades y guarda; después confirma la asignación. Se requiere al menos un recurso humano."}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={() => setDiscardOpen(true)}>
