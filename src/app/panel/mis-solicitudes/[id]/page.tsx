@@ -149,10 +149,16 @@ function FinalizeModal({ detail, onClose, onSaved }: { detail: AssignedRequestDe
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const scheduledDay = detail.event_date.slice(0, 10);
   const set = (patch: Partial<typeof values>) => setValues((v) => ({ ...v, ...patch }));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // El día real de inicio no puede ser anterior al programado; la hora sí.
+    if (values.start_date < scheduledDay || values.end_date < values.start_date) {
+      setError("El día real de inicio no puede ser anterior al día programado, ni el fin anterior al inicio.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -190,11 +196,11 @@ function FinalizeModal({ detail, onClose, onSaved }: { detail: AssignedRequestDe
     >
       <form id="finalize-form" onSubmit={submit} noValidate className="space-y-4">
         <div className="grid grid-cols-[3fr_2fr] gap-2">
-          <TextField label="Inicio real" type="date" value={values.start_date} onChange={(e) => set({ start_date: e.target.value })} required />
+          <TextField label="Inicio real" type="date" min={scheduledDay} value={values.start_date} onChange={(e) => set({ start_date: e.target.value })} required />
           <TextField label="Hora" type="time" value={values.start_time} onChange={(e) => set({ start_time: e.target.value })} required />
         </div>
         <div className="grid grid-cols-[3fr_2fr] gap-2">
-          <TextField label="Fin real" type="date" value={values.end_date} onChange={(e) => set({ end_date: e.target.value })} required />
+          <TextField label="Fin real" type="date" min={values.start_date} value={values.end_date} onChange={(e) => set({ end_date: e.target.value })} required />
           <TextField label="Hora" type="time" value={values.end_time} onChange={(e) => set({ end_time: e.target.value })} required />
         </div>
         <TextAreaField
