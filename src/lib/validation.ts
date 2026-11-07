@@ -40,6 +40,30 @@ export function normalizeFolio(value: string): string {
   return value.trim().toUpperCase();
 }
 
+/** domain: application/services/calendar/booking-lead-time.js (temporada por mes del evento). */
+const SEASONS = [
+  { name: "alta", months: [11, 12, 1, 2, 3], upTo30: 2, over30: 3 },
+  { name: "media", months: [4, 5, 10], upTo30: 1, over30: 2 },
+  { name: "baja", months: [6, 7, 8, 9], upTo30: 1, over30: 2 },
+];
+
+/** "2026-11-06" + n meses de calendario; si el día no existe en el mes destino, el último día. */
+export function addMonths(date: string, n: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month - 1 + n + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1 + n, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}
+
+/** Mensaje de error si el día del evento no cumple la anticipación mínima; undefined si cumple. */
+export function leadTimeError(eventDate: string, guests: number, today: string): string | undefined {
+  const season = SEASONS.find((s) => s.months.includes(Number(eventDate.slice(5, 7))));
+  if (!season) return undefined;
+  const months = guests > 30 ? season.over30 : season.upTo30;
+  const minimum = addMonths(today, months);
+  if (eventDate >= minimum) return undefined;
+  return `Para ${guests} invitados en temporada ${season.name} se requieren al menos ${months} ${months === 1 ? "mes" : "meses"} de anticipación. Fecha mínima: ${minimum}.`;
+}
+
 export type ReservationForm = {
   client_full_name: string;
   email: string;
@@ -78,6 +102,11 @@ export function validateReservation(form: ReservationForm, today = todayInMerida
   }
   if (!form.event_date || !form.start_time || form.event_date < today) {
     errors.event_date_time = "Seleccione una fecha válida. No puede ser anterior a la fecha actual.";
+  }
+  const guestsForLead = Number(form.guest_count);
+  if (!errors.event_date_time && Number.isInteger(guestsForLead) && guestsForLead > 0) {
+    const leadError = leadTimeError(form.event_date, guestsForLead, today);
+    if (leadError) errors.event_date_time = leadError;
   }
   // Si la hora de fin no es posterior a la de inicio, el evento termina al día siguiente (el back valida el resto).
   if (!form.end_time) {

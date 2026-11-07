@@ -141,6 +141,7 @@ export default function ReservationPage() {
               label="Fecha"
               type="date"
               min={today}
+              hint="Anticipación: temporada alta (nov–mar) 2 meses, hasta 30 invitados, o 3 si son más; media y baja, 1 o 2 meses."
               value={form.event_date}
               onChange={(e) => {
                 set("event_date", e.target.value);

@@ -3,7 +3,7 @@ import { normalizeUser } from "./api/auth";
 import { can, navFor } from "./auth/permissions";
 import { endsNextDay, formatTime, meridaToIso, parseDateTime, TIME_SLOTS, toMeridaDateTime } from "./format";
 import { canConfirmResources, flowStepIndex, normalizeStatus, statusLabel } from "./status";
-import { hasDigit, hasLetter, isValidPrice, toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
+import { addMonths, hasDigit, leadTimeError, hasLetter, isValidPrice, toReservationPayload, validatePassword, validateReservation, type ReservationForm } from "./validation";
 
 describe("normalizeUser", () => {
   it("unifica camelCase (login) y snake_case (session)", () => {
@@ -64,20 +64,29 @@ describe("validation", () => {
   };
 
   it("acepta un formulario válido", () => {
-    expect(validateReservation(valid, "2026-10-29")).toEqual({});
+    expect(validateReservation(valid, "2026-08-01")).toEqual({});
   });
 
   it("marca los mismos campos que el back", () => {
     const errors = validateReservation(
       { ...valid, client_full_name: "Mariana", phone: "123", end_time: "", guest_count: "0", services_ids: [] },
-      "2026-10-29",
+      "2026-08-01",
     );
     expect(Object.keys(errors).sort()).toEqual(["client_full_name", "event_end_time", "guest_count", "phone", "services_ids"]);
   });
 
+  it("exige anticipación según temporada e invitados", () => {
+    expect(addMonths("2027-01-31", 1)).toBe("2027-02-28");
+    expect(leadTimeError("2027-01-05", 30, "2026-11-06")).toMatch(/alta.*2 meses.*2027-01-06/);
+    expect(leadTimeError("2027-01-06", 30, "2026-11-06")).toBeUndefined();
+    expect(leadTimeError("2027-01-06", 31, "2026-11-06")).toMatch(/3 meses.*2027-02-06/);
+    expect(leadTimeError("2027-04-05", 30, "2026-11-06")).toBeUndefined();
+    expect(validateReservation({ ...valid, guest_count: "31", event_date: "2026-08-15" }, "2026-08-01").event_date_time).toMatch(/anticipación/);
+  });
+
   it("calcula el día siguiente cuando horaFin <= horaInicio (sin casilla)", () => {
     const form = { ...valid, end_time: "02:00" };
-    expect(validateReservation(form, "2026-10-29")).toEqual({});
+    expect(validateReservation(form, "2026-08-01")).toEqual({});
     expect(toReservationPayload(form).event_end_time).toBe("2026-12-25T08:00:00.000Z");
     expect(toReservationPayload({ ...valid, end_time: "18:00" }).event_end_time).toBe("2026-12-26T00:00:00.000Z");
     expect(toReservationPayload(valid).event_end_time).toBe("2026-12-25T05:00:00.000Z");
