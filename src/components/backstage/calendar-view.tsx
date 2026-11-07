@@ -215,6 +215,7 @@ function EventItem({ event, href, actions }: { event: CalendarEvent; href: strin
       <p className="flex items-center gap-1.5 text-muted">
         <Icon name="clock" className="h-4 w-4" />
         {formatTime(event.start_datetime)} – {formatTime(event.end_datetime)} h
+        {event.end_datetime.slice(0, 10) > event.start_datetime.slice(0, 10) ? " (+1 día)" : ""}
       </p>
       <p className="flex items-center gap-1.5 text-muted">
         <Icon name="pin" className="h-4 w-4" />
