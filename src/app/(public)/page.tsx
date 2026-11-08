@@ -21,6 +21,11 @@ export default function LandingPage() {
       <DocumentTitle title="Banquetes y eventos en Mérida" />
       {/* Hero */}
       <section className="relative overflow-hidden bg-ink text-white">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center opacity-15"
+          style={{ backgroundImage: 'url("/images/banquetes.jpg")' }}
+        />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(184,146,90,0.35),transparent_45%),radial-gradient(circle_at_85%_80%,rgba(122,46,58,0.65),transparent_50%)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 md:grid-cols-[1.2fr_1fr] md:py-28">
           <div className="space-y-6">
@@ -41,7 +46,7 @@ export default function LandingPage() {
               </ButtonLink>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-white/10 p-6 bg-wine">
             <p className="font-display text-xl">¿Ya tienes un folio?</p>
             <p className="mt-1 text-sm text-white/60">Consulta el estado de tu solicitud y revisa tu propuesta.</p>
             <div className="mt-5">
@@ -98,11 +103,17 @@ export default function LandingPage() {
             {GALLERY.map((item, index) => (
               <div
                 key={item.title}
-                className={`flex aspect-[3/4] items-end rounded-2xl bg-gradient-to-br ${item.tone} p-5 text-white shadow-sm ${
+                className={`relative flex aspect-[3/4] items-end overflow-hidden rounded-2xl p-5 text-white shadow-sm ${
                   index % 2 ? "md:translate-y-8" : ""
                 }`}
               >
-                <p className="font-display text-lg">{item.title}</p>
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url("${item.image}")` }}
+                />
+                <div aria-hidden="true" className={`absolute inset-0 bg-gradient-to-br ${item.tone} opacity-40`} />
+                <p className="relative font-display text-lg">{item.title}</p>
               </div>
             ))}
           </div>
