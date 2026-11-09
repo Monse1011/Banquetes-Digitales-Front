@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { ErrorState } from "@/components/backstage/common";
-import { Badge, EmptyState, LoadingBlock, StatusBadge } from "@/components/ui/feedback";
+import { EmptyState, LoadingBlock, StatusBadge } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
 import { Card } from "@/components/ui/layout";
-import { isSynced, listCalendarEvents, type CalendarEvent, type CalendarScope } from "@/lib/api/calendar";
+import { listCalendarEvents, type CalendarEvent, type CalendarScope } from "@/lib/api/calendar";
 import { formatLongDate, formatTime, monthGrid, todayInMerida } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { normalizeStatus } from "@/lib/status";
@@ -16,10 +16,6 @@ const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const ALL_EVENTS = 500;
 
 const dayOf = (event: CalendarEvent) => event.start_datetime.slice(0, 10);
-
-export function SyncBadge({ status }: { status: string }) {
-  return isSynced(status) ? <Badge tone="ok">Sincronizado</Badge> : <Badge tone="warn">Pendiente de sincronizar</Badge>;
-}
 
 export function CalendarView({
   scope,
@@ -41,6 +37,8 @@ export function CalendarView({
     () => listCalendarEvents(scope, { include_cancelled: includeCancelled, per_page: ALL_EVENTS }),
     `${scope}-${includeCancelled}-${refreshKey}`,
   );
+  // El back decide qué es "próximo" (no Finalizado y con hora de fin futura, en hora de Mérida).
+  const next = useQuery(() => listCalendarEvents(scope, { upcoming: true, per_page: ALL_EVENTS }), `${scope}-upcoming-${refreshKey}`);
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -58,8 +56,8 @@ export function CalendarView({
   const monthLabel = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric", timeZone: "UTC" }).format(
     new Date(Date.UTC(cursor.year, cursor.month, 1)),
   );
-  const upcoming = (data?.items ?? [])
-    .filter((event) => dayOf(event) >= today && normalizeStatus(event.status) !== "CANCELED")
+  const upcoming = (next.data?.items ?? [])
+    .slice()
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
     .slice(0, 5);
   const dayEvents = byDay.get(selected) ?? [];
@@ -217,6 +215,7 @@ function EventItem({ event, href, actions }: { event: CalendarEvent; href: strin
       <p className="flex items-center gap-1.5 text-muted">
         <Icon name="clock" className="h-4 w-4" />
         {formatTime(event.start_datetime)} – {formatTime(event.end_datetime)} h
+        {event.end_datetime.slice(0, 10) > event.start_datetime.slice(0, 10) ? " (+1 día)" : ""}
       </p>
       <p className="flex items-center gap-1.5 text-muted">
         <Icon name="pin" className="h-4 w-4" />
@@ -228,10 +227,7 @@ function EventItem({ event, href, actions }: { event: CalendarEvent; href: strin
           {event.logistics_responsible.full_name}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <SyncBadge status={event.sync_status} />
-        {actions}
-      </div>
+      {actions}
     </li>
   );
 }

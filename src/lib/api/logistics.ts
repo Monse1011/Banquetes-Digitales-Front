@@ -2,7 +2,7 @@
 // ("Asignada", "Coordinación Lista"…); se normalizan con lib/status.
 import { api, apiBlob, readPagination, type Paginated } from "./http";
 import type { ResourceType } from "./resources";
-import { addDays, toSqlDateTime } from "@/lib/format";
+import { addDays, toMeridaDateTime } from "@/lib/format";
 
 export type AssignedRequestSummary = {
   request_id: number;
@@ -58,6 +58,8 @@ export type AssignedRequestDetail = {
   status: string;
   proposal_viewed_at: string | null;
   can_register_agreements: boolean;
+  /** Muestra "Registrar finalización": Confirmado y hoy (Mérida) entre el día de inicio y el de fin. */
+  can_register_finalization: boolean;
   adjustments: ClientAdjustment[];
 };
 
@@ -119,7 +121,7 @@ export async function listAvailability(
 /** Ventana de uso por defecto = horario del evento (si termina antes de empezar, cruza medianoche). */
 export function defaultUsageWindow(meta: AvailabilityRequestMeta) {
   const endDate = meta.end_time <= meta.start_time ? addDays(meta.event_date, 1) : meta.event_date;
-  return { usage_start: toSqlDateTime(meta.event_date, meta.start_time), usage_end: toSqlDateTime(endDate, meta.end_time) };
+  return { usage_start: toMeridaDateTime(meta.event_date, meta.start_time), usage_end: toMeridaDateTime(endDate, meta.end_time) };
 }
 
 export type ProvisionalItem = {
@@ -133,7 +135,8 @@ export type ProvisionalItem = {
 export async function assignProvisional(requestId: number | string, items: ProvisionalItem[], observations?: string | null) {
   await api(`/api/logistics/requests/${requestId}/resources`, {
     method: "POST",
-    body: { data: items, observations: observations || null },
+    // Sin observaciones se omite la clave: el back guarda `null` en una columna NOT NULL y responde 500.
+    body: { data: items, observations: observations || undefined },
   });
 }
 
@@ -217,6 +220,13 @@ export type AgreementsInput = {
   derived_information_id: number | null;
 };
 
+/** Solo lo que cambió: un recurso sin tocar se omite (el back lo deja igual); cantidad 0 lo libera. */
+export function changedResources(assigned: AgreementResource[], quantities: Record<number, string>) {
+  return assigned
+    .filter((r) => quantities[r.resource_id] !== undefined && Number(quantities[r.resource_id]) !== r.quantity)
+    .map((r) => ({ resource_id: r.resource_id, quantity: Number(quantities[r.resource_id]) }));
+}
+
 export async function saveAgreements(requestId: number | string, input: AgreementsInput): Promise<number> {
   const raw = await api<{ data: { derived_information_id: number } }>(`/api/logistics/requests/${requestId}/derived-information`, {
     method: "POST",
@@ -263,13 +273,14 @@ export async function sendProposal(requestId: number | string): Promise<void> {
 // --- Calendario (§5.4) ---
 
 export async function scheduleEvent(requestId: number | string) {
-  const raw = await api<{ data: { event_id: number; sync_status: string } }>(`/api/logistics/requests/${requestId}/calendar`, {
+  const raw = await api<{ data: { event_id: number } }>(`/api/logistics/requests/${requestId}/calendar`, {
     method: "POST",
   });
   return raw?.data;
 }
 
-export async function editEvent(eventId: number, input: { location: string; start_datetime: string; end_datetime: string }) {
+/** En eventos Confirmados el back rechaza (422) cambios de fecha y hora: solo se envía la ubicación. */
+export async function editEvent(eventId: number, input: { location: string }) {
   await api(`/api/logistics/calendar/${eventId}`, { method: "PATCH", body: { data: input } });
 }
 
@@ -277,7 +288,12 @@ export async function cancelEvent(eventId: number) {
   await api(`/api/logistics/calendar/${eventId}`, { method: "DELETE" });
 }
 
-export async function retrySync(eventId: number): Promise<string | undefined> {
-  const raw = await api<{ message?: string }>(`/api/logistics/calendar/${eventId}/sync`, { method: "POST" });
-  return raw?.message;
+// --- Cierre del evento (§3.6) ---
+
+/** Horas reales con offset (`2026-11-15T18:10:00-06:00`); 422 si no está Confirmado o ya se finalizó, 409 fuera del día. */
+export async function finalizeEvent(
+  requestId: number | string,
+  input: { actual_start_at: string; actual_end_at: string; event_observation: string | null },
+) {
+  await api(`/api/logistics/requests/${requestId}/ending`, { method: "PATCH", body: { data: { ...input, status: "FINALIZED" } } });
 }

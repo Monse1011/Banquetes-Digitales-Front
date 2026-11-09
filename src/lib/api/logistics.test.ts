@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assignProvisional,
+  changedResources,
   confirmResources,
   downloadProposal,
   editEvent,
+  finalizeEvent,
   generateProposal,
   listAssignedRequests,
   listAvailability,
@@ -49,7 +51,11 @@ describe("logistics api", () => {
     let fetchMock = mockFetch(204);
     const item = { resource_id: 2, quantity: 40, usage_start: "2026-12-24 18:00:00", usage_end: "2026-12-24 23:00:00", observation: null };
     await assignProvisional(1, [item]);
-    expect(call(fetchMock).body).toEqual({ data: [item], observations: null });
+    expect(call(fetchMock).body).toEqual({ data: [item] });
+
+    fetchMock = mockFetch(204);
+    await assignProvisional(1, [item], "Llegar temprano");
+    expect(call(fetchMock).body).toEqual({ data: [item], observations: "Llegar temprano" });
 
     fetchMock = mockFetch(204);
     await releaseProvisional(1, 2);
@@ -65,8 +71,8 @@ describe("logistics api", () => {
     await expect(
       saveAgreements(1, {
         location: "Hacienda",
-        start_datetime: "2026-12-24 18:30:00",
-        end_datetime: "2026-12-24 23:30:00",
+        start_datetime: "2026-12-24T18:30:00-06:00",
+        end_datetime: "2026-12-24T23:30:00-06:00",
         observations: null,
         adjusted_resources: [{ resource_id: 2, quantity: 50 }],
         derived_information_id: 5,
@@ -79,19 +85,73 @@ describe("logistics api", () => {
     expect(call(fetchMock).body).toEqual({ data: { derived_information_id: 6, client_observations: null, discount_amount: 200 } });
   });
 
+  it("en acuerdos envía solo lo que cambió: omite lo no tocado y libera con 0", () => {
+    const assigned = [
+      { resource_id: 1, name: "Ana", type: "HUMAN" as const, quantity: 1, unit_cost: null },
+      { resource_id: 2, name: "Sillas", type: "MATERIAL" as const, quantity: 50, unit_cost: 10 },
+      { resource_id: 3, name: "Camioneta", type: "LOGISTIC" as const, quantity: 1, unit_cost: 500 },
+    ];
+    // Ana se libera, Sillas no se tocó (mismo valor) y Camioneta cambió: no hace falta enviar todas las categorías.
+    expect(changedResources(assigned, { 1: "0", 2: "50", 3: "2" })).toEqual([
+      { resource_id: 1, quantity: 0 },
+      { resource_id: 3, quantity: 2 },
+    ]);
+    expect(changedResources(assigned, { 1: "1", 2: "50", 3: "1" })).toEqual([]);
+  });
+
+  it("expone los errores por campo y los conflictos de acuerdos", async () => {
+    const message = "Mesero Ana: La cantidad ajustada de un recurso humano debe ser 1 o 0 para liberarlo.";
+    mockFetch(400, { message, errors: { adjusted_resources: message } });
+    const input = {
+      location: "Hacienda",
+      start_datetime: "2026-12-24T18:30:00-06:00",
+      end_datetime: "2026-12-24T23:30:00-06:00",
+      observations: null,
+      adjusted_resources: [{ resource_id: 1, quantity: 2 }],
+      derived_information_id: 5,
+    };
+    const error = await saveAgreements(1, input).catch((e) => e);
+    expect(error.fieldErrors.adjusted_resources).toBe(message);
+    expect(error.message).toBe(message);
+
+    const conflict = "Camioneta no se modificó, pero su cantidad asignada (1) ya no está disponible para el horario indicado (disponible: 0).";
+    mockFetch(409, { message: "Conflicto", conflicts: [{ message: conflict }] });
+    const error409 = await saveAgreements(1, input).catch((e) => e);
+    expect(error409.payload.conflicts[0].message).toBe(conflict);
+  });
+
   it("descarga el PDF con el nombre del Content-Disposition", async () => {
     mockFetch(200, "%PDF-1.4", { "Content-Disposition": 'attachment; filename="PROP-2026-001.pdf"' });
     const { filename } = await downloadProposal(1);
     expect(filename).toBe("PROP-2026-001.pdf");
   });
 
-  it("edita el evento sin tocar responsable ni recursos", async () => {
-    const fetchMock = mockFetch(200);
-    await editEvent(10, { location: "Nueva", start_datetime: "2026-12-24 19:00:00", end_datetime: "2026-12-25 00:00:00" });
+  it("edita solo la ubicación del evento y expone el 422 de fecha y hora", async () => {
+    let fetchMock = mockFetch(200);
+    await editEvent(10, { location: "Nueva" });
+    expect(call(fetchMock)).toEqual({ url: "/api/logistics/calendar/10", method: "PATCH", body: { data: { location: "Nueva" } } });
+
+    const message = "No es posible cambiar la fecha ni la hora de un evento confirmado. Solo se puede modificar la ubicación.";
+    fetchMock = mockFetch(422, { message, errors: { start_datetime: message } });
+    const error = await editEvent(10, { location: "Nueva" }).catch((e) => e);
+    expect(error.status).toBe(422);
+    expect(error.fieldErrors.start_datetime).toBe(message);
+  });
+
+  it("registra la finalización con horas con offset y expone el 422", async () => {
+    let fetchMock = mockFetch(200, { data: {} });
+    await finalizeEvent(7, { actual_start_at: "2026-11-15T18:10:00-06:00", actual_end_at: "2026-11-15T23:20:00-06:00", event_observation: null });
     expect(call(fetchMock)).toEqual({
-      url: "/api/logistics/calendar/10",
+      url: "/api/logistics/requests/7/ending",
       method: "PATCH",
-      body: { data: { location: "Nueva", start_datetime: "2026-12-24 19:00:00", end_datetime: "2026-12-25 00:00:00" } },
+      body: {
+        data: { actual_start_at: "2026-11-15T18:10:00-06:00", actual_end_at: "2026-11-15T23:20:00-06:00", event_observation: null, status: "FINALIZED" },
+      },
     });
+
+    fetchMock = mockFetch(422, { message: "El evento ya fue finalizado y no puede modificarse." });
+    const error = await finalizeEvent(7, { actual_start_at: "x", actual_end_at: "y", event_observation: null }).catch((e) => e);
+    expect(error.status).toBe(422);
+    expect(error.message).toBe("El evento ya fue finalizado y no puede modificarse.");
   });
 });

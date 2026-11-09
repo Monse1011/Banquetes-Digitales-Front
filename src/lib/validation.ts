@@ -1,5 +1,5 @@
 // Reglas replicadas del back para dar retroalimentación inmediata. El back sigue siendo la fuente de verdad.
-import { meridaToIso, todayInMerida } from "./format";
+import { addDays, endsNextDay, meridaToIso, todayInMerida } from "./format";
 
 /** domain/value-objects/password.js */
 export function validatePassword(password: string): string | undefined {
@@ -24,11 +24,44 @@ export const PASSWORD_RULES = [
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const FULL_NAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s[A-Za-zÀ-ÖØ-öø-ÿ]+)+$/;
+/** Nombres de rol y de persona: el back exige al menos una letra. */
+export const hasLetter = (value: string) => /\p{L}/u.test(value);
+/** Los nombres de rol y de persona no admiten números (ajuste QA). */
+export const hasDigit = (value: string) => /\p{N}/u.test(value);
+
+/** Precio por hora: número > 0 con máximo 2 decimales (mismo mensaje que el back). */
+export const PRICE_ERROR = "El precio por hora es obligatorio y debe ser un número mayor a 0 con máximo 2 decimales.";
+export const isValidPrice = (value: string) => /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) > 0;
+
 export const PHONE_REGEX = /^\d{10}$/;
 export const FOLIO_REGEX = /^BD-\d{4}-\d{5}$/;
 
 export function normalizeFolio(value: string): string {
   return value.trim().toUpperCase();
+}
+
+/** domain: application/services/calendar/booking-lead-time.js (temporada por mes del evento). */
+const SEASONS = [
+  { name: "alta", months: [11, 12, 1, 2, 3], upTo30: 2, over30: 3 },
+  { name: "media", months: [4, 5, 10], upTo30: 1, over30: 2 },
+  { name: "baja", months: [6, 7, 8, 9], upTo30: 1, over30: 2 },
+];
+
+/** "2026-11-06" + n meses de calendario; si el día no existe en el mes destino, el último día. */
+export function addMonths(date: string, n: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month - 1 + n + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1 + n, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}
+
+/** Mensaje de error si el día del evento no cumple la anticipación mínima; undefined si cumple. */
+export function leadTimeError(eventDate: string, guests: number, today: string): string | undefined {
+  const season = SEASONS.find((s) => s.months.includes(Number(eventDate.slice(5, 7))));
+  if (!season) return undefined;
+  const months = guests > 30 ? season.over30 : season.upTo30;
+  const minimum = addMonths(today, months);
+  if (eventDate >= minimum) return undefined;
+  return `Para ${guests} invitados en temporada ${season.name} se requieren al menos ${months} ${months === 1 ? "mes" : "meses"} de anticipación. Fecha mínima: ${minimum}.`;
 }
 
 export type ReservationForm = {
@@ -37,7 +70,6 @@ export type ReservationForm = {
   phone: string;
   event_date: string;
   start_time: string;
-  end_date: string;
   end_time: string;
   guest_count: string;
   event_address: string;
@@ -71,11 +103,14 @@ export function validateReservation(form: ReservationForm, today = todayInMerida
   if (!form.event_date || !form.start_time || form.event_date < today) {
     errors.event_date_time = "Seleccione una fecha válida. No puede ser anterior a la fecha actual.";
   }
-  const endDate = form.end_date || form.event_date;
-  if (!form.end_time || !endDate) {
-    errors.event_end_time = "Seleccione una fecha y hora de fin válidas.";
-  } else if (form.event_date && form.start_time && `${endDate}T${form.end_time}` <= `${form.event_date}T${form.start_time}`) {
-    errors.event_end_time = "La hora de fin debe ser posterior a la hora de inicio.";
+  const guestsForLead = Number(form.guest_count);
+  if (!errors.event_date_time && Number.isInteger(guestsForLead) && guestsForLead > 0) {
+    const leadError = leadTimeError(form.event_date, guestsForLead, today);
+    if (leadError) errors.event_date_time = leadError;
+  }
+  // Si la hora de fin no es posterior a la de inicio, el evento termina al día siguiente (el back valida el resto).
+  if (!form.end_time) {
+    errors.event_end_time = "Seleccione una hora de fin.";
   }
   const guests = Number(form.guest_count);
   if (!Number.isInteger(guests) || guests <= 0) {
@@ -96,9 +131,14 @@ export function toReservationPayload(form: ReservationForm): ReservationPayload 
     email: form.email.trim(),
     phone: form.phone.trim(),
     event_date_time: meridaToIso(form.event_date, form.start_time),
-    event_end_time: meridaToIso(form.end_date || form.event_date, form.end_time),
+    event_end_time: meridaToIso(eventEndDate(form), form.end_time),
     guest_count: Number(form.guest_count),
     event_address: form.event_address.trim(),
     services_ids: form.services_ids,
   };
+}
+
+/** Día de fin del evento: el siguiente si la hora de fin no es posterior a la de inicio. */
+export function eventEndDate(form: Pick<ReservationForm, "event_date" | "start_time" | "end_time">): string {
+  return endsNextDay(form.start_time, form.end_time) ? addDays(form.event_date, 1) : form.event_date;
 }

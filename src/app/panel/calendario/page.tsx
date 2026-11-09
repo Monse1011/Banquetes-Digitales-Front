@@ -8,12 +8,12 @@ import { TextField } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/layout";
 import { ConfirmDialog, Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { isSynced, type CalendarEvent } from "@/lib/api/calendar";
-import { errorMessage } from "@/lib/api/http";
-import { cancelEvent, editEvent, retrySync } from "@/lib/api/logistics";
+import type { CalendarEvent } from "@/lib/api/calendar";
+import { ApiError, errorMessage } from "@/lib/api/http";
+import { cancelEvent, editEvent } from "@/lib/api/logistics";
 import { useAuth } from "@/lib/auth/auth-context";
 import { can } from "@/lib/auth/permissions";
-import { todayInMerida, toInputParts, toSqlDateTime } from "@/lib/format";
+import { formatDateTime, todayInMerida } from "@/lib/format";
 import { normalizeStatus } from "@/lib/status";
 
 export default function CalendarPage() {
@@ -23,31 +23,13 @@ export default function CalendarPage() {
   const [refresh, setRefresh] = useState(0);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [cancelling, setCancelling] = useState<CalendarEvent | null>(null);
-  const [syncing, setSyncing] = useState<number | null>(null);
   const reload = () => setRefresh((r) => r + 1);
-
-  const sync = async (event: CalendarEvent) => {
-    setSyncing(event.event_id);
-    try {
-      toast.success((await retrySync(event.event_id)) ?? "Sincronización solicitada.");
-      reload();
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setSyncing(null);
-    }
-  };
 
   // Logística opera sus eventos; el admin solo consulta.
   const actions = (event: CalendarEvent) => {
     const editable = normalizeStatus(event.status) === "CONFIRMED" && event.start_datetime.slice(0, 10) >= todayInMerida();
     return (
       <div className="flex flex-wrap gap-1">
-        {!isSynced(event.sync_status) && normalizeStatus(event.status) !== "CANCELED" ? (
-          <Button size="sm" variant="ghost" icon="refresh" loading={syncing === event.event_id} onClick={() => sync(event)}>
-            Sincronizar
-          </Button>
-        ) : null}
         {editable ? (
           <>
             <Button size="sm" variant="ghost" icon="edit" onClick={() => setEditing(event)}>
@@ -105,37 +87,22 @@ export default function CalendarPage() {
 }
 
 function EditEventModal({ event, onClose, onSaved }: { event: CalendarEvent; onClose: () => void; onSaved: () => void }) {
-  const start = toInputParts(event.start_datetime);
-  const end = toInputParts(event.end_datetime);
-  const [values, setValues] = useState({
-    location: event.location,
-    start_date: start.date,
-    start_time: start.time,
-    end_date: end.date,
-    end_time: end.time,
-  });
+  const [location, setLocation] = useState(event.location);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const set = (patch: Partial<typeof values>) => setValues((v) => ({ ...v, ...patch }));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!values.location.trim()) return setError("La ubicación es obligatoria.");
-    if (`${values.end_date}T${values.end_time}` <= `${values.start_date}T${values.start_time}`) {
-      return setError("El término debe ser posterior al inicio.");
-    }
+    if (!location.trim()) return setError("La ubicación es obligatoria.");
     setBusy(true);
     setError("");
     try {
-      await editEvent(event.event_id, {
-        location: values.location.trim(),
-        start_datetime: toSqlDateTime(values.start_date, values.start_time),
-        end_datetime: toSqlDateTime(values.end_date, values.end_time),
-      });
+      await editEvent(event.event_id, { location: location.trim() });
       onSaved();
     } catch (err) {
       setBusy(false);
-      setError(errorMessage(err));
+      // 422: el mensaje específico viene en errors.<campo>.
+      setError((err instanceof ApiError && Object.values(err.fieldErrors)[0]) || errorMessage(err));
     }
   };
 
@@ -144,7 +111,7 @@ function EditEventModal({ event, onClose, onSaved }: { event: CalendarEvent; onC
       open
       onClose={busy ? () => undefined : onClose}
       title={`Editar evento ${event.folio}`}
-      description="El responsable y los recursos no se modifican desde aquí."
+      description="En un evento confirmado solo se puede modificar la ubicación."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
@@ -157,15 +124,14 @@ function EditEventModal({ event, onClose, onSaved }: { event: CalendarEvent; onC
       }
     >
       <form id="event-form" onSubmit={submit} noValidate className="space-y-4">
-        <TextField label="Ubicación" value={values.location} onChange={(e) => set({ location: e.target.value })} required />
-        <div className="grid grid-cols-[3fr_2fr] gap-2">
-          <TextField label="Inicio" type="date" value={values.start_date} onChange={(e) => set({ start_date: e.target.value })} required />
-          <TextField label="Hora" type="time" value={values.start_time} onChange={(e) => set({ start_time: e.target.value })} required />
-        </div>
-        <div className="grid grid-cols-[3fr_2fr] gap-2">
-          <TextField label="Término" type="date" value={values.end_date} onChange={(e) => set({ end_date: e.target.value })} required />
-          <TextField label="Hora" type="time" value={values.end_time} onChange={(e) => set({ end_time: e.target.value })} required />
-        </div>
+        <TextField label="Ubicación" value={location} onChange={(e) => setLocation(e.target.value)} required />
+        <TextField
+          label="Fecha y hora"
+          value={`${formatDateTime(event.start_datetime)} – ${formatDateTime(event.end_datetime)}`}
+          hint="No es posible cambiar la fecha ni la hora de un evento confirmado."
+          disabled
+          readOnly
+        />
         {error ? <Alert tone="danger">{error}</Alert> : null}
       </form>
     </Modal>

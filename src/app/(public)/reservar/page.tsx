@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, Spinner } from "@/components/ui/feedback";
-import { Checkbox, TextAreaField, TextField } from "@/components/ui/form";
+import { SelectField, TextAreaField, TextField } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { createReservation, getServices } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/http";
-import { addDays, todayInMerida } from "@/lib/format";
+import { localParts, TIME_SLOTS } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { DocumentTitle } from "@/components/ui/layout";
-import { toReservationPayload, validateReservation, type ReservationForm } from "@/lib/validation";
+import { eventEndDate, toReservationPayload, validateReservation, type ReservationForm } from "@/lib/validation";
 
 const EMPTY: ReservationForm = {
   client_full_name: "",
@@ -19,7 +19,6 @@ const EMPTY: ReservationForm = {
   phone: "",
   event_date: "",
   start_time: "",
-  end_date: "",
   end_time: "",
   guest_count: "",
   event_address: "",
@@ -43,11 +42,13 @@ export default function ReservationPage() {
   const router = useRouter();
   const services = useQuery(getServices, "services");
   const [form, setForm] = useState<ReservationForm>(EMPTY);
-  const [endsNextDay, setEndsNextDay] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
   const [busy, setBusy] = useState(false);
-  const today = todayInMerida();
+  // "Hoy" y "ahora" en hora de Mérida, no en la zona del navegador.
+  const now = localParts(new Date());
+  const today = now.date;
+  const endDate = form.event_date && form.start_time && form.end_time ? eventEndDate(form) : "";
 
   const set = <K extends keyof ReservationForm>(key: K, value: ReservationForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -65,8 +66,7 @@ export default function ReservationPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitError("");
-    const data = { ...form, end_date: endsNextDay && form.event_date ? addDays(form.event_date, 1) : "" };
-    const found = validateReservation(data);
+    const found = validateReservation(form, today);
     setErrors(found);
     if (Object.keys(found).length > 0) {
       document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus();
@@ -74,7 +74,7 @@ export default function ReservationPage() {
     }
     setBusy(true);
     try {
-      const folio = await createReservation(toReservationPayload(data));
+      const folio = await createReservation(toReservationPayload(form));
       router.push(`/reservar/confirmacion?folio=${encodeURIComponent(folio)}`);
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
@@ -141,6 +141,7 @@ export default function ReservationPage() {
               label="Fecha"
               type="date"
               min={today}
+              hint="Anticipación: temporada alta (nov–mar) 2 meses, hasta 30 invitados, o 3 si son más; media y baja, 1 o 2 meses."
               value={form.event_date}
               onChange={(e) => {
                 set("event_date", e.target.value);
@@ -149,30 +150,41 @@ export default function ReservationPage() {
               error={errors.event_date_time}
               required
             />
-            <TextField
+            <SelectField
               label="Hora de inicio"
-              type="time"
               value={form.start_time}
-              onChange={(e) => set("start_time", e.target.value)}
+              onChange={(e) => {
+                set("start_time", e.target.value);
+                setErrors((x) => ({ ...x, event_date_time: "" }));
+              }}
               required
-            />
-            <TextField
+            >
+              <option value="">Selecciona…</option>
+              {TIME_SLOTS.map((slot) => (
+                <option key={slot} value={slot} disabled={form.event_date === today && slot <= now.time}>
+                  {slot}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
               label="Hora de término"
-              type="time"
               value={form.end_time}
               onChange={(e) => {
                 set("end_time", e.target.value);
                 setErrors((x) => ({ ...x, event_end_time: "" }));
               }}
               error={errors.event_end_time}
+              hint={endDate && endDate !== form.event_date ? `Termina el día siguiente (${endDate.slice(8, 10)}/${endDate.slice(5, 7)})` : undefined}
               required
-            />
+            >
+              <option value="">Selecciona…</option>
+              {TIME_SLOTS.map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot}
+                </option>
+              ))}
+            </SelectField>
           </div>
-          <Checkbox
-            label="El evento termina al día siguiente (después de medianoche)"
-            checked={endsNextDay}
-            onChange={(e) => setEndsNextDay(e.target.checked)}
-          />
           <div className="grid gap-4 sm:grid-cols-[1fr_3fr]">
             <TextField
               label="Invitados"

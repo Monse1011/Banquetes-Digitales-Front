@@ -33,13 +33,13 @@ describe("monthGrid", () => {
 describe("defaultUsageWindow", () => {
   it("usa el horario del evento", () => {
     expect(defaultUsageWindow(meta("18:00", "23:00"))).toEqual({
-      usage_start: "2026-12-31 18:00:00",
-      usage_end: "2026-12-31 23:00:00",
+      usage_start: "2026-12-31T18:00:00-06:00",
+      usage_end: "2026-12-31T23:00:00-06:00",
     });
   });
 
   it("pasa al día siguiente si termina después de medianoche", () => {
-    expect(defaultUsageWindow(meta("20:00", "02:00")).usage_end).toBe("2027-01-01 02:00:00");
+    expect(defaultUsageWindow(meta("20:00", "02:00")).usage_end).toBe("2027-01-01T02:00:00-06:00");
   });
 });
 

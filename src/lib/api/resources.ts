@@ -20,6 +20,8 @@ export type Resource = {
   operative_role_id?: number | null;
   quantity?: number;
   unit_cost?: number;
+  /** Tarifa por hora de recursos humanos; `null` en personas registradas antes de que existiera. */
+  precio?: number | null;
   created_at?: string;
   updated_at?: string;
   deactivated_at?: string | null;
@@ -55,7 +57,7 @@ export async function getResource(type: ResourceType, id: number): Promise<Resou
   return raw.data.resource;
 }
 
-export type HumanInput = { name: string; operative_role_id: number };
+export type HumanInput = { name: string; operative_role_id: number; precio: number };
 
 /** 409 con `requires_confirmation` si hay un posible duplicado: reenviar con `confirmDuplicate`. */
 export async function createHumanResource(input: HumanInput, confirmDuplicate = false): Promise<void> {

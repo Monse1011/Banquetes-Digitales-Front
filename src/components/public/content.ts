@@ -40,10 +40,10 @@ export const STATS = [
 ];
 
 export const GALLERY = [
-  { title: "Bodas en hacienda", tone: "from-wine to-gold" },
-  { title: "Eventos corporativos", tone: "from-ink to-wine" },
-  { title: "XV años", tone: "from-gold to-wine-dark" },
-  { title: "Cenas privadas", tone: "from-wine-dark to-ink" },
+  { title: "Bodas en hacienda", image: "/images/boda.jpeg", tone: "from-wine to-gold" },
+  { title: "Eventos corporativos", image: "/images/eventos-corporativos.webp", tone: "from-ink to-wine" },
+  { title: "XV años", image: "/images/xv-años.webp", tone: "from-gold to-wine-dark" },
+  { title: "Cenas privadas", image: "/images/cenas-privadas.jpg", tone: "from-wine-dark to-ink" },
 ];
 
 export const TESTIMONIALS = [
@@ -67,7 +67,7 @@ export const TESTIMONIALS = [
 export const FAQ = [
   {
     q: "¿Con cuánta anticipación debo solicitar mi evento?",
-    a: "Recomendamos al menos 6 semanas; para temporada alta (noviembre a enero), de 3 a 4 meses.",
+    a: "La anticipación depende de la temporada y los invitados: hasta 30 invitados, 2 meses en temporada alta (noviembre a marzo) y 1 en media (abril-mayo y octubre) o baja (junio-septiembre); para más de 30 invitados, 3 meses en alta y 2 en media o baja.",
   },
   {
     q: "¿Cómo doy seguimiento a mi solicitud?",

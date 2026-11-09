@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError, errorMessage } from "@/lib/api/http";
 import { createOperativeRole, deleteOperativeRole, listOperativeRoles, updateOperativeRole, type OperativeRole } from "@/lib/api/resources";
 import { useQuery } from "@/lib/hooks";
+import { hasDigit, hasLetter } from "@/lib/validation";
 
 function OperativeRolesPage() {
   const toast = useToast();
@@ -103,6 +104,14 @@ function RoleForm({ role, onClose, onSaved }: { role?: OperativeRole; onClose: (
     setError("");
     if (!name.trim()) {
       setFieldError("El nombre es obligatorio.");
+      return;
+    }
+    if (!hasLetter(name)) {
+      setFieldError("El nombre debe contener al menos una letra.");
+      return;
+    }
+    if (hasDigit(name)) {
+      setFieldError("El nombre no puede contener números.");
       return;
     }
     if (name.trim().length > 100) {
