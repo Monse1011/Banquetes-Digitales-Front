@@ -4,10 +4,11 @@ import { useState } from "react";
 import { ErrorState } from "@/components/backstage/common";
 import { Button } from "@/components/ui/button";
 import { Alert, Badge, LoadingBlock } from "@/components/ui/feedback";
-import { TextAreaField, TextField } from "@/components/ui/form";
+import { SelectField } from "@/components/ui/form";
 import { Card, CardHeader, DetailList } from "@/components/ui/layout";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { getPublicPromotions } from "@/lib/api/client";
 import { ApiError, errorMessage, saveBlob } from "@/lib/api/http";
 import {
   downloadProposal,
@@ -17,7 +18,7 @@ import {
   sendProposal,
   type AssignedRequestDetail,
 } from "@/lib/api/logistics";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { canEditAgreements } from "@/lib/status";
 
@@ -91,6 +92,17 @@ export function ProposalTab({ detail, onChanged }: { detail: AssignedRequestDeta
                 { label: "Archivo", value: <span className="[overflow-wrap:anywhere]">{current.name}</span> },
                 { label: "Generada", value: formatDate(current.creation_date) },
                 ...(current.version ? [{ label: "Versión", value: current.version }] : []),
+                ...(current.promotion
+                  ? [
+                      {
+                        label: "Promoción aplicada",
+                        value: `${current.promotion.name} (−${formatPercent(current.promotion.discount_percentage)})`,
+                      },
+                    ]
+                  : []),
+                ...(current.total_amount !== undefined
+                  ? [{ label: "Total", value: formatMoney(current.total_amount) }]
+                  : []),
               ]}
             />
           </div>
@@ -150,31 +162,22 @@ function GenerateForm({
   onGenerated: () => void;
 }) {
   const toast = useToast();
-  const [discount, setDiscount] = useState("0");
-  const [notes, setNotes] = useState("");
-  const [fieldError, setFieldError] = useState("");
+  const promotions = useQuery(getPublicPromotions, "active-promotions");
+  const [promotionId, setPromotionId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const discountValue = Number(discount || 0);
+
+  const selected = (promotions.data ?? []).find((promotion) => String(promotion.id) === promotionId);
+  const discount = selected ? Math.round(subtotal * selected.discount_percentage) / 100 : 0;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
-    if (Number.isNaN(discountValue) || discountValue < 0) {
-      setFieldError("El descuento debe ser un número mayor o igual a cero.");
-      return;
-    }
-    if (discountValue > subtotal) {
-      setFieldError("El descuento no puede ser mayor al subtotal.");
-      return;
-    }
-    setFieldError("");
     setBusy(true);
     try {
       const generated = await generateProposal(requestId, {
         derived_information_id: derivedId,
-        client_observations: notes.trim() || null,
-        discount_amount: discountValue,
+        promotion_id: promotionId ? Number(promotionId) : null,
       });
       toast.success(`Propuesta ${generated.proposals_code} generada.`);
       setBusy(false);
@@ -197,21 +200,27 @@ function GenerateForm({
             <p className="text-xs uppercase tracking-wide text-muted">Subtotal</p>
             <p className="mt-1 text-lg font-medium">{formatMoney(subtotal)}</p>
           </div>
-          <TextField
-            label="Descuento (MXN)"
-            type="number"
-            min={0}
-            step="0.01"
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            error={fieldError}
-          />
+          <SelectField
+            label="Promoción"
+            value={promotionId}
+            onChange={(e) => setPromotionId(e.target.value)}
+            hint="Solo promociones vigentes; el descuento se calcula al generar."
+            disabled={promotions.loading && !promotions.data}
+          >
+            <option value="">Sin promoción</option>
+            {(promotions.data ?? []).map((promotion) => (
+              <option key={promotion.id} value={promotion.id}>
+                {promotion.name} (−{formatPercent(promotion.discount_percentage)})
+              </option>
+            ))}
+          </SelectField>
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted">Total</p>
-            <p className="mt-1 font-display text-2xl text-wine">{formatMoney(Math.max(0, subtotal - (discountValue || 0)))}</p>
+            <p className="text-xs uppercase tracking-wide text-muted">Total estimado</p>
+            <p className="mt-1 font-display text-2xl text-wine">{formatMoney(Math.max(0, subtotal - discount))}</p>
+            {selected ? <p className="text-xs text-muted">Descuento estimado {formatMoney(discount)}</p> : null}
           </div>
         </div>
-        <TextAreaField label="Observaciones para el cliente (opcional)" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        {promotions.error ? <Alert tone="warn">{promotions.error.message}</Alert> : null}
         {error ? <Alert tone="danger">{error}</Alert> : null}
         <div className="flex justify-end">
           <Button type="submit" icon="file" loading={busy}>

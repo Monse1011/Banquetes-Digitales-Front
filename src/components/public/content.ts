@@ -39,13 +39,6 @@ export const STATS = [
   { value: "98%", label: "clientes satisfechos" },
 ];
 
-export const GALLERY = [
-  { title: "Bodas en hacienda", image: "/images/boda.jpeg", tone: "from-wine to-gold" },
-  { title: "Eventos corporativos", image: "/images/eventos-corporativos.webp", tone: "from-ink to-wine" },
-  { title: "XV años", image: "/images/xv-años.webp", tone: "from-gold to-wine-dark" },
-  { title: "Cenas privadas", image: "/images/cenas-privadas.jpg", tone: "from-wine-dark to-ink" },
-];
-
 export const TESTIMONIALS = [
   {
     quote: "Todo salió perfecto: la comida, el servicio y la puntualidad. Nuestros invitados siguen hablando de la cena.",

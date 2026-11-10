@@ -10,7 +10,10 @@ const ORIGINAL_TZ = process.env.TZ;
 beforeEach(() => {
   process.env.TZ = "Asia/Tokyo";
   vi.useFakeTimers({ toFake: ["Date"] });
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 1, nombre: "Banquete" }] }), { status: 200 })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify({ data: { services: [{ id: 1, name: "Banquete", description: "Menú", price: 100 }] } }), { status: 200 })),
+  );
 });
 
 afterEach(() => {

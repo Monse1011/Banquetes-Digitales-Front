@@ -81,8 +81,12 @@ describe("logistics api", () => {
     expect(call(fetchMock).body.data.derived_information_id).toBe(5);
 
     fetchMock = mockFetch(201, { data: { proposals_code: "PROP-2026-001" } });
-    await generateProposal(1, { derived_information_id: 6, client_observations: null, discount_amount: 200 });
-    expect(call(fetchMock).body).toEqual({ data: { derived_information_id: 6, client_observations: null, discount_amount: 200 } });
+    await generateProposal(1, { derived_information_id: 6, promotion_id: 4 });
+    expect(call(fetchMock).body).toEqual({ data: { derived_information_id: 6, promotion_id: 4 } });
+
+    fetchMock = mockFetch(201, { data: { proposals_code: "PROP-2026-002" } });
+    await generateProposal(1, { derived_information_id: 6, promotion_id: null });
+    expect(call(fetchMock).body).toEqual({ data: { derived_information_id: 6, promotion_id: null } });
   });
 
   it("en acuerdos envía solo lo que cambió: omite lo no tocado y libera con 0", () => {

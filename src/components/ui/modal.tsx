@@ -107,6 +107,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel = "Confirmar",
+  cancelLabel = "Cancelar",
   tone = "primary",
   onConfirm,
 }: {
@@ -115,6 +116,7 @@ export function ConfirmDialog({
   title: string;
   children?: ReactNode;
   confirmLabel?: string;
+  cancelLabel?: string;
   tone?: "primary" | "danger";
   onConfirm: () => Promise<void> | void;
 }) {
@@ -149,7 +151,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={close} disabled={busy}>
-            Cancelar
+            {cancelLabel}
           </Button>
           <Button variant={tone} onClick={confirm} loading={busy}>
             {confirmLabel}

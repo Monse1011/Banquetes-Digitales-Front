@@ -2,11 +2,42 @@
 import { api } from "./http";
 import type { ReservationPayload } from "@/lib/validation";
 
-export type ClientService = { id: number; nombre: string };
+/** Catálogo público de servicios vigentes (contrato 12): nombre, descripción y precio. */
+export type ClientService = { id: number; name: string; description: string; price: number };
 
 export async function getServices(): Promise<ClientService[]> {
-  const response = await api<{ data: ClientService[] }>("/api/client/services");
-  return response?.data ?? [];
+  const response = await api<{ data: { services: ClientService[] } }>("/api/client/services");
+  return response?.data?.services ?? [];
+}
+
+/** Catálogo público de promociones vigentes (contrato 11). */
+export type ClientPromotion = {
+  id: number;
+  name: string;
+  description: string;
+  discount_percentage: number;
+  valid_until: string;
+};
+
+export async function getPublicPromotions(): Promise<ClientPromotion[]> {
+  const response = await api<{ data: { promotions: ClientPromotion[] } }>("/api/client/promotions");
+  return response?.data?.promotions ?? [];
+}
+
+/** Galería fotográfica de eventos realizados (diagrama Función 3.4). */
+export type GalleryPhoto = { id: number; url: string; title?: string | null; alt?: string | null };
+
+export async function getGallery(): Promise<GalleryPhoto[]> {
+  const response = await api<{ data: { gallery: GalleryPhoto[] } }>("/api/client/gallery");
+  return response?.data?.gallery ?? [];
+}
+
+/** Redes sociales con enlace registrado; solo esas se muestran (RF-3.4.1.3). */
+export type SocialLink = { network: string; url: string };
+
+export async function getSocialLinks(): Promise<SocialLink[]> {
+  const response = await api<{ data: { social_links: SocialLink[] } }>("/api/client/social-links");
+  return response?.data?.social_links ?? [];
 }
 
 export async function createReservation(payload: ReservationPayload): Promise<string> {

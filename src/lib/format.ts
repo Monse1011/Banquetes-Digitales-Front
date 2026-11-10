@@ -112,6 +112,11 @@ export function monthGrid(year: number, month: number): string[] {
   });
 }
 
+/** Porcentaje con 2 decimales ("10.00%"), como vienen del back. */
+export function formatPercent(value: number | string | null | undefined): string {
+  return `${Number(value ?? 0).toFixed(2)}%`;
+}
+
 const money = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 
 export function formatMoney(value: number | string | null | undefined, currency = "MXN"): string {

@@ -9,6 +9,7 @@ import { Icon } from "@/components/ui/icon";
 
 const LINKS = [
   { href: "/#servicios", label: "Servicios" },
+  { href: "/#promociones", label: "Promociones" },
   { href: "/#como-funciona", label: "Cómo funciona" },
   { href: "/#preguntas", label: "Preguntas" },
   { href: "/seguimiento", label: "Consultar folio" },

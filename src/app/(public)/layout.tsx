@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Logo } from "@/components/brand/logo";
 import { BUSINESS } from "@/components/public/content";
 import { SiteHeader } from "@/components/public/site-header";
+import { SocialLinks } from "@/components/public/social-links";
 import { LoadingBlock } from "@/components/ui/feedback";
 import { SkipLink } from "@/components/ui/skip-link";
 
@@ -26,6 +27,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <p>{BUSINESS.email}</p>
             <p>{BUSINESS.address}</p>
             <p>{BUSINESS.hours}</p>
+            <SocialLinks />
           </div>
           <div className="space-y-2 text-sm">
             <p className="mb-2 font-medium text-white">Clientes</p>

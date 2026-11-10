@@ -34,6 +34,11 @@ const PATHS: Record<string, string> = {
   file: "M6 3h8l5 5v13H6zM14 3v5h5",
   send: "M3 11l18-8-8 18-2-8z",
   ban: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8",
+  cloche: "M4 17h16M12 7a8 8 0 0 1 8 8H4a8 8 0 0 1 8-8zM12 7V5M10 5h4",
+  percent: "M19 5 5 19M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  chart: "M4 20h16M7 20v-6M12 20V8M17 20V4",
+  facebook: "M14 8h3V4h-3a5 5 0 0 0-5 5v3H6v4h3v8h4v-8h3l1-4h-4V9a1 1 0 0 1 1-1z",
+  instagram: "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM17.5 6.5h.01",
 };
 
 export type IconName = keyof typeof PATHS;

@@ -1,5 +1,7 @@
-import { FAQ, GALLERY, STATS, STEPS, TESTIMONIALS, BUSINESS } from "@/components/public/content";
+import { FAQ, STATS, STEPS, TESTIMONIALS, BUSINESS } from "@/components/public/content";
 import { FolioLookup } from "@/components/public/folio-lookup";
+import { GallerySection } from "@/components/public/gallery-section";
+import { PromotionsSection } from "@/components/public/promotions-section";
 import { ServicesGrid } from "@/components/public/services-grid";
 import { ButtonLink } from "@/components/ui/button";
 import { DocumentTitle } from "@/components/ui/layout";
@@ -79,6 +81,18 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Promociones */}
+      <section id="promociones" className="scroll-mt-20 bg-cream-dark/60 px-4 py-20 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <SectionTitle
+            eyebrow="Promociones"
+            title="Promociones vigentes"
+            text="Descuentos que puedes aplicar al aceptar tu propuesta durante su vigencia."
+          />
+          <PromotionsSection />
+        </div>
+      </section>
+
       {/* Cómo funciona */}
       <section id="como-funciona" className="scroll-mt-20 bg-white px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-6xl">
@@ -99,24 +113,7 @@ export default function LandingPage() {
       <section className="px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <SectionTitle eyebrow="Galería" title="Celebraciones que hemos hecho posibles" />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {GALLERY.map((item, index) => (
-              <div
-                key={item.title}
-                className={`relative flex aspect-[3/4] items-end overflow-hidden rounded-2xl p-5 text-white shadow-sm ${
-                  index % 2 ? "md:translate-y-8" : ""
-                }`}
-              >
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url("${item.image}")` }}
-                />
-                <div aria-hidden="true" className={`absolute inset-0 bg-gradient-to-br ${item.tone} opacity-40`} />
-                <p className="relative font-display text-lg">{item.title}</p>
-              </div>
-            ))}
-          </div>
+          <GallerySection />
         </div>
       </section>
 

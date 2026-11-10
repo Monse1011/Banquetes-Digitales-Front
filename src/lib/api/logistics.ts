@@ -244,11 +244,16 @@ export type GeneratedProposal = {
   status: string;
   request_status?: string;
   pdf_url?: string;
+  subtotal?: number;
+  discount_amount?: number;
+  total_amount?: number;
+  promotion?: { name: string; discount_percentage: number } | null;
 };
 
+/** Contrato 18: la promoción es opcional; las observaciones del cliente se eliminaron del contrato. */
 export async function generateProposal(
   requestId: number | string,
-  input: { derived_information_id: number; client_observations: string | null; discount_amount: number },
+  input: { derived_information_id: number; promotion_id: number | null },
 ): Promise<GeneratedProposal> {
   const raw = await api<{ data: GeneratedProposal }>(`/api/logistics/requests/${requestId}/proposals`, {
     method: "POST",

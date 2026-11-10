@@ -8,7 +8,7 @@ import { SelectField, TextAreaField, TextField } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { createReservation, getServices } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/http";
-import { localParts, TIME_SLOTS } from "@/lib/format";
+import { formatMoney, localParts, TIME_SLOTS } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
 import { DocumentTitle } from "@/components/ui/layout";
 import { eventEndDate, toReservationPayload, validateReservation, type ReservationForm } from "@/lib/validation";
@@ -234,7 +234,8 @@ export default function ReservationPage() {
                     }`}
                   >
                     <input type="checkbox" className="h-4 w-4 accent-wine" checked={checked} onChange={() => toggleService(service.id)} />
-                    {service.nombre}
+                    <span className="flex-1">{service.name}</span>
+                    <span className="text-xs text-muted">{formatMoney(service.price)}</span>
                   </label>
                 );
               })}
