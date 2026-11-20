@@ -179,6 +179,7 @@ export type AgreementResource = {
   type: ResourceType;
   quantity: number;
   unit_cost: number | null;
+  precio?: number | null; // tarifa por hora del recurso humano
   requested_quantity?: number;
   available_quantity?: number;
   sufficiency?: string;
@@ -301,4 +302,10 @@ export async function finalizeEvent(
   input: { actual_start_at: string; actual_end_at: string; event_observation: string | null },
 ) {
   await api(`/api/logistics/requests/${requestId}/ending`, { method: "PATCH", body: { data: { ...input, status: "FINALIZED" } } });
+}
+
+/** Misma regla que el back (human-resource-cost.js): persona = tarifa/hora × minutos del evento / 60; el resto usa unit_cost. */
+export function resourceUnitCost(r: AgreementResource, eventMinutes: number): number {
+  if (r.type !== "HUMAN") return Number(r.unit_cost ?? 0);
+  return Math.round((Number(r.precio ?? 0) * 100 * Math.max(0, eventMinutes)) / 60) / 100;
 }

@@ -15,6 +15,7 @@ import {
   generateProposal,
   getAgreements,
   getGeneratedProposal,
+  resourceUnitCost,
   sendProposal,
   type AssignedRequestDetail,
 } from "@/lib/api/logistics";
@@ -118,7 +119,16 @@ export function ProposalTab({ detail, onChanged }: { detail: AssignedRequestDeta
           <GenerateForm
             requestId={requestId}
             derivedId={agreements.data.derived_information_id}
-            subtotal={agreements.data.assigned_resources.reduce((s, r) => s + r.quantity * Number(r.unit_cost ?? 0), 0)}
+            subtotal={agreements.data.assigned_resources.reduce(
+              (s, r) =>
+                s +
+                r.quantity *
+                  resourceUnitCost(
+                    r,
+                    (Date.parse(agreements.data!.end_datetime) - Date.parse(agreements.data!.start_datetime)) / 60000,
+                  ),
+              0,
+            )}
             isNewVersion={Boolean(current)}
             onGenerated={() => {
               proposal.reload();

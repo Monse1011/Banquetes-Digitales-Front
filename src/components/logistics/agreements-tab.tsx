@@ -8,7 +8,7 @@ import { TextAreaField, TextField } from "@/components/ui/form";
 import { Card, CardHeader, DetailList } from "@/components/ui/layout";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, errorMessage } from "@/lib/api/http";
-import { changedResources, getAgreements, saveAgreements, type Agreements } from "@/lib/api/logistics";
+import { changedResources, getAgreements, resourceUnitCost, saveAgreements, type Agreements } from "@/lib/api/logistics";
 import { RESOURCE_TYPE_LABELS } from "@/lib/api/resources";
 import { formatDateTime, formatMoney, toInputParts, toMeridaDateTime } from "@/lib/format";
 import { useQuery } from "@/lib/hooks";
@@ -76,8 +76,17 @@ function AgreementsForm({
   const editable = data.can_register_agreements;
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
 
+  // Misma regla que el back (human-resource-cost.js): persona = tarifa/hora × minutos del evento / 60.
+  // Usa el horario del formulario y, si aún es inválido, el horario guardado.
+  const formMinutes =
+    (Date.parse(toMeridaDateTime(form.end_date, form.end_time)) -
+      Date.parse(toMeridaDateTime(form.start_date, form.start_time))) / 60000;
+  const eventMinutes =
+    formMinutes > 0 ? formMinutes : (Date.parse(data.end_datetime) - Date.parse(data.start_datetime)) / 60000;
+  const unitCostOf = (r: Agreements["assigned_resources"][number]) => resourceUnitCost(r, eventMinutes);
+
   const subtotal = data.assigned_resources.reduce(
-    (sum, r) => sum + Number(form.quantities[r.resource_id] ?? r.quantity) * Number(r.unit_cost ?? 0),
+    (sum, r) => sum + Number(form.quantities[r.resource_id] ?? r.quantity) * unitCostOf(r),
     0,
   );
 
@@ -202,7 +211,7 @@ function AgreementsForm({
                     <tr key={r.resource_id}>
                       <td className="px-5 py-3">{r.name}</td>
                       <td className="px-5 py-3 text-muted">{RESOURCE_TYPE_LABELS[r.type] ?? r.type}</td>
-                      <td className="hidden px-5 py-3 text-right sm:table-cell">{formatMoney(r.unit_cost ?? 0)}</td>
+                      <td className="hidden px-5 py-3 text-right sm:table-cell">{r.type === "HUMAN" ? `${formatMoney(r.precio ?? 0)} / h` : formatMoney(r.unit_cost ?? 0)}</td>
                       <td className="px-5 py-3">
                         <input
                           type="number"
@@ -222,7 +231,7 @@ function AgreementsForm({
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-5 py-3 text-right">{formatMoney(q * Number(r.unit_cost ?? 0))}</td>
+                      <td className="px-5 py-3 text-right">{formatMoney(q * unitCostOf(r))}</td>
                     </tr>
                   );
                 })}
@@ -232,7 +241,7 @@ function AgreementsForm({
                   <td colSpan={4} className="px-5 py-3 text-right">
                     Subtotal estimado
                     <span className="block text-xs font-normal text-muted">
-                      No incluye personal; el total se calcula al generar la propuesta.
+                      Personal = tarifa por hora × duración del evento; el total final se calcula al generar la propuesta.
                     </span>
                   </td>
                   <td className="px-5 py-3 text-right">{formatMoney(subtotal)}</td>
